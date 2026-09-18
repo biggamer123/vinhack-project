@@ -46,6 +46,10 @@
       {
         "command": "blastradius.reloadCoverage",
         "title": "Blast Radius: Reload Coverage (lcov)"
+      },
+      {
+        "command": "blastradius.showSchemas",
+        "title": "Blast Radius: Show Database Schemas"
       }
     ],
     "configuration": {

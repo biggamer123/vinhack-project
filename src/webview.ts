@@ -97,6 +97,10 @@ export class GraphPanel {
     }
     if (msg.type === "browser") {
       void openInBrowser(this.context, this.graph, this.risk, msg.id);
+      return;
+    }
+    if (msg.type === "schema") {
+      void vscode.commands.executeCommand("blastradius.showSchemas");
     }
   }
 

@@ -363,6 +363,13 @@
       <button class="btn" id="reset">RESET VIEW</button>
       <button
         class="btn"
+        id="schema"
+        style="background: var(--yellow); color: #17140f"
+      >
+        DB SCHEMA
+      </button>
+      <button
+        class="btn"
         id="browser"
         style="background: var(--blue); color: #fff"
       >
@@ -840,6 +847,9 @@
             });
             sim && sim.alpha(0.4).restart();
           }
+        });
+        document.getElementById("schema").addEventListener("click", () => {
+          vscode.postMessage({ type: "schema" });
         });
         document.getElementById("browser").addEventListener("click", () => {
           vscode.postMessage({ type: "browser", id: selected && selected.id });

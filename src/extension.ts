@@ -19,6 +19,7 @@ import {
   loadedDialects,
 } from "./indexer";
 import { RiskService } from "./risk";
+import { detectDatabaseSchemas, schemaDiagramHtml } from "./schema";
 import { GraphPanel, openInBrowser } from "./webview";
 
 /** Every dialect the bundled grammars can parse. */
@@ -95,6 +96,20 @@ export async function activate(
         await risk.reloadCoverage(root);
         log(`reloaded coverage from ${risk.coverageSource}`);
       }
+    }),
+    vscode.commands.registerCommand("blastradius.showSchemas", async () => {
+      const root = workspaceRoot();
+      if (!root) {
+        return;
+      }
+      const schemas = await detectDatabaseSchemas(root);
+      const panel = vscode.window.createWebviewPanel(
+        "blastradius.schemas",
+        "Database Schema Diagram",
+        vscode.ViewColumn.Beside,
+        { enableScripts: true },
+      );
+      panel.webview.html = schemaDiagramHtml(schemas);
     }),
   );
 
