@@ -17,9 +17,11 @@
     "onLanguage:javascriptreact",
     "onLanguage:typescript",
     "onLanguage:typescriptreact",
+    "onLanguage:go",
     "workspaceContains:**/*.js",
     "workspaceContains:**/*.ts",
-    "workspaceContains:**/*.tsx"
+    "workspaceContains:**/*.tsx",
+    "workspaceContains:**/*.go"
   ],
   "main": "./out/extension.js",
   "contributes": {

@@ -22,7 +22,7 @@ import { RiskService } from "./risk";
 import { GraphPanel, openInBrowser } from "./webview";
 
 /** Every dialect the bundled grammars can parse. */
-const SOURCE_GLOB = "**/*.{js,jsx,mjs,cjs,ts,mts,cts,tsx}";
+const SOURCE_GLOB = "**/*.{js,jsx,mjs,cjs,ts,mts,cts,tsx,go}";
 const EXCLUDE_GLOB =
   "**/{node_modules,dist,build,out,.git,coverage,.next,.nuxt,.turbo,.svelte-kit,vendor,__generated__}/**";
 
@@ -32,6 +32,7 @@ const LANGUAGES = [
   "javascriptreact",
   "typescript",
   "typescriptreact",
+  "go",
 ];
 
 const graph = new CallGraph();

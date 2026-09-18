@@ -13,12 +13,13 @@ import Parser from "web-tree-sitter";
 import { CallSite, FileIndex, FunctionNode } from "./graph";
 
 /** One grammar per dialect: JSX and type annotations need different parsers. */
-type Dialect = "javascript" | "typescript" | "tsx";
+type Dialect = "javascript" | "typescript" | "tsx" | "go";
 
 const GRAMMAR_FILE: Record<Dialect, string> = {
   javascript: "tree-sitter-javascript.wasm",
   typescript: "tree-sitter-typescript.wasm",
   tsx: "tree-sitter-tsx.wasm",
+  go: "tree-sitter-go.wasm",
 };
 
 const EXT_DIALECT: Record<string, Dialect> = {
@@ -30,6 +31,7 @@ const EXT_DIALECT: Record<string, Dialect> = {
   ".mts": "typescript",
   ".cts": "typescript",
   ".tsx": "tsx",
+  ".go": "go",
 };
 
 const parsers = new Map<Dialect, Parser>();
@@ -163,8 +165,12 @@ function calleeName(call: Parser.SyntaxNode): string | undefined {
   if (fn.type === "identifier") {
     return fn.text;
   }
-  if (fn.type === "member_expression") {
-    return fn.childForFieldName("property")?.text || undefined;
+  if (fn.type === "member_expression" || fn.type === "selector_expression") {
+    const property =
+      fn.childForFieldName("property") ??
+      fn.childForFieldName("field") ??
+      fn.namedChildren[fn.namedChildren.length - 1];
+    return property?.text || undefined;
   }
   return undefined; // IIFE, computed dispatch, etc. - not resolvable statically
 }
