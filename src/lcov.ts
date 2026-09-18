@@ -8,6 +8,10 @@ import * as path from "path";
 
 export type LcovIndex = Map<string, Map<number, number>>;
 
+function normalizeLcovFile(file: string): string {
+  return path.normalize(file).replace(/\\/g, "/").toLowerCase();
+}
+
 export function parseLcov(root: string, text: string): LcovIndex {
   const index: LcovIndex = new Map();
   let current: Map<number, number> | undefined;
@@ -15,8 +19,10 @@ export function parseLcov(root: string, text: string): LcovIndex {
   for (const rawLine of text.split(/\r?\n/)) {
     const line = rawLine.trim();
     if (line.startsWith("SF:")) {
-      const file = line.slice(3);
-      const abs = path.isAbsolute(file) ? file : path.resolve(root, file);
+      const candidate = line.slice(3);
+      const abs = normalizeLcovFile(
+        path.isAbsolute(candidate) ? candidate : path.resolve(root, candidate),
+      );
       current = index.get(abs) || new Map<number, number>();
       index.set(abs, current);
     } else if (line.startsWith("DA:") && current) {
@@ -44,7 +50,7 @@ export function coverageForRange(
   startLine: number,
   endLine: number,
 ): number | null {
-  const lines = index.get(file);
+  const lines = index.get(normalizeLcovFile(file));
   if (!lines) {
     return null;
   }
