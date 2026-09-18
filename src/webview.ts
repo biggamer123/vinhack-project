@@ -12,6 +12,7 @@ import * as path from "path";
 import * as vscode from "vscode";
 import { CallGraph } from "./graph";
 import { RiskService, tierFor } from "./risk";
+import { detectDatabaseSchemas, schemaDiagramHtml } from "./schema";
 import { buildStandaloneHtml } from "./standalone";
 
 interface WireNode {
@@ -37,6 +38,8 @@ export class GraphPanel {
   private readonly panel: vscode.WebviewPanel;
   private disposables: vscode.Disposable[] = [];
   private ready = false;
+  private schemaVisible = false;
+  private schemaHtml = "";
   /** Function the user clicked in a CodeLens, to select once the page is up. */
   focusId: string | undefined;
 
@@ -66,6 +69,10 @@ export class GraphPanel {
   /** Push fresh data into an already-open panel (after a save or re-index). */
   static refresh(): void {
     GraphPanel.current?.update();
+  }
+
+  static toggleSchema(): void {
+    GraphPanel.current?.toggleSchemaView();
   }
 
   private constructor(
@@ -100,8 +107,27 @@ export class GraphPanel {
       return;
     }
     if (msg.type === "schema") {
-      void vscode.commands.executeCommand("blastradius.showSchemas");
+      this.toggleSchemaView();
     }
+  }
+
+  private async toggleSchemaView(): Promise<void> {
+    if (!this.ready) {
+      return;
+    }
+    this.schemaVisible = !this.schemaVisible;
+    if (this.schemaVisible) {
+      const root = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+      if (!root) {
+        this.schemaVisible = false;
+        return;
+      }
+      const schemas = await detectDatabaseSchemas(root);
+      this.schemaHtml = schemaDiagramHtml(schemas);
+    } else {
+      this.schemaHtml = "";
+    }
+    this.update();
   }
 
   /** Jump the editor to a function the user clicked in the graph. */
@@ -128,7 +154,12 @@ export class GraphPanel {
       return;
     }
     const payload = serializeGraph(this.graph, this.risk);
-    this.panel.webview.postMessage({ ...payload, focus: this.focusId });
+    this.panel.webview.postMessage({
+      ...payload,
+      focus: this.focusId,
+      viewMode: this.schemaVisible ? "schema" : "graph",
+      schemaHtml: this.schemaVisible ? this.schemaHtml : "",
+    });
     this.focusId = undefined; // one-shot: a later refresh should not yank the view back
   }
 

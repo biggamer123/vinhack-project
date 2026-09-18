@@ -157,6 +157,18 @@
         border-right: 4px solid #000;
         overflow: hidden;
       }
+      .schema-overlay {
+        position: absolute;
+        inset: 0;
+        overflow: auto;
+        background: linear-gradient(180deg, #0f172a 0%, #1f2937 100%);
+        padding: 16px;
+        display: none;
+        z-index: 10;
+      }
+      .schema-overlay.visible {
+        display: block;
+      }
       svg {
         width: 100%;
         height: 100%;
@@ -379,6 +391,7 @@
 
     <div class="stage">
       <div class="canvas-wrap">
+        <div id="schemaOverlay" class="schema-overlay"></div>
         <svg id="svg"></svg>
         <div class="scanlines"></div>
         <div class="hud" id="hud">LOADING…</div>
@@ -440,7 +453,8 @@
           links = [],
           selected = null,
           frozen = false,
-          hideOrphans = false;
+          hideOrphans = false,
+          viewMode = "graph";
         // True when this page is a file:// snapshot opened in a real browser: there is
         // no extension host on the other end, so host-dependent buttons are hidden.
         let standalone = false;
@@ -634,6 +648,32 @@
             counts.high +
             " &nbsp; DARK " +
             counts.critical;
+        }
+
+        function setViewMode(nextMode) {
+          viewMode = nextMode;
+          const overlay = document.getElementById("schemaOverlay");
+          const svgEl = document.getElementById("svg");
+          const schemaBtn = document.getElementById("schema");
+          const showSchema = viewMode === "schema";
+
+          if (overlay) {
+            overlay.classList.toggle("visible", showSchema);
+          }
+          if (svgEl) {
+            svgEl.style.display = showSchema ? "none" : "block";
+          }
+          if (schemaBtn) {
+            schemaBtn.classList.toggle("on", showSchema);
+          }
+          const aside = document.querySelector("aside");
+          if (aside) {
+            aside.style.display = showSchema ? "none" : "block";
+          }
+          const hud = document.getElementById("hud");
+          if (hud) {
+            hud.style.display = showSchema ? "none" : "block";
+          }
         }
 
         function bar(label, value, max, text, color) {
@@ -864,6 +904,15 @@
           if (msg.standalone) {
             standalone = true;
             document.getElementById("browser").style.display = "none";
+          }
+          if (msg.viewMode) {
+            setViewMode(msg.viewMode);
+          }
+          if (msg.viewMode === "schema" && msg.schemaHtml) {
+            const overlay = document.getElementById("schemaOverlay");
+            if (overlay) {
+              overlay.innerHTML = msg.schemaHtml;
+            }
           }
           const prev = new Map(nodes.map((n) => [n.id, n]));
           nodes = msg.nodes.map((n, i) => {

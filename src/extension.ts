@@ -98,18 +98,7 @@ export async function activate(
       }
     }),
     vscode.commands.registerCommand("blastradius.showSchemas", async () => {
-      const root = workspaceRoot();
-      if (!root) {
-        return;
-      }
-      const schemas = await detectDatabaseSchemas(root);
-      const panel = vscode.window.createWebviewPanel(
-        "blastradius.schemas",
-        "Database Schema Diagram",
-        vscode.ViewColumn.Beside,
-        { enableScripts: true },
-      );
-      panel.webview.html = schemaDiagramHtml(schemas);
+      GraphPanel.toggleSchema();
     }),
   );
 
