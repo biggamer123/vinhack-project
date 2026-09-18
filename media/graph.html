@@ -1236,7 +1236,9 @@ window.addEventListener('error', function (e) {
     links = msg.edges
       .filter(function (e) { return byId.has(e.from) && byId.has(e.to); })
       .map(function (e) { return { source: byId.get(e.from), target: byId.get(e.to) }; });
-    $('subtitle').textContent = String(msg.summary || '').toUpperCase();
+    $('subtitle').textContent =
+      String(msg.summary || '').toUpperCase() +
+      (msg.version ? '  \u00b7  BUILD v' + msg.version : '');
     render();
     if (msg.focus) {
       var target = byId.get(msg.focus);

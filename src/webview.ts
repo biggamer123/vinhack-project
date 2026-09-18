@@ -192,6 +192,7 @@ export class GraphPanel {
       ...payload,
       focus: this.focusId,
       protocol: PROTOCOL_VERSION,
+      version: this.context.extension?.packageJSON?.version ?? "dev",
       viewMode: this.schemaVisible ? "schema" : "graph",
       schemaHtml: this.schemaHtml,
       schemaInfo: this.schemaInfo,
