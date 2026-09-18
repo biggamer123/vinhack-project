@@ -119,6 +119,23 @@ function walk(dir, acc = []) {
     "utf8",
   );
   const { scanDatabaseSchemas, inferSchemaRelations } = require("../out/schema");
+  // Features, built the same way the extension's browser export builds them.
+  const { readCommits, buildFeatures } = require("../out/features");
+  let features = null;
+  if (repo) {
+    const refs = nodes.map((n) => ({
+      id: n.id,
+      name: n.name,
+      file: n.file,
+      startLine: n.startLine,
+      score: n.score,
+      tier: n.tier,
+      commitHashes: (n.risk.commits || []).map((c) => c.hash),
+    }));
+    features = buildFeatures(await readCommits(repo), refs);
+    console.log(`features: ${features.features.length} from ${features.taggedCommits}/${features.totalCommits} commits`);
+  }
+
   const scan = await scanDatabaseSchemas(root);
   const schema = {
     tables: scan.schemas.map((t) => ({
@@ -137,7 +154,7 @@ function walk(dir, acc = []) {
 
   const html = buildStandaloneHtml(
     template,
-    { type: "graph", nodes, edges, summary, schema, protocol: PROTOCOL_VERSION, version: "preview" },
+    { type: "graph", nodes, edges, summary, schema, features, protocol: PROTOCOL_VERSION, version: "preview" },
     new Date().toLocaleString(),
   );
 

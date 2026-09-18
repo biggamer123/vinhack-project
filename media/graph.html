@@ -266,6 +266,37 @@
   .commitline .subj { white-space: normal; line-height: 1.6; }
   .expander { display: inline-block; width: 12px; color: var(--muted); }
 
+  /* ---- features view ---- */
+  .fwrap { flex: 1; display: flex; min-height: 0; background: var(--cream); }
+  .flist { width: 420px; flex: none; overflow-y: auto; padding: 12px; border-right: 4px solid #000; }
+  .fdetail { flex: 1; overflow-y: auto; padding: 14px; }
+  .fsummary { background: var(--gb-green); border: 3px solid #000; box-shadow: 4px 4px 0 #000; padding: 9px; font-size: 8px; line-height: 1.9; margin-bottom: 12px; }
+  .fcard {
+    background: #fffdf6; border: 3px solid #000; box-shadow: 4px 4px 0 #000;
+    padding: 9px; margin-bottom: 10px; cursor: pointer; border-left-width: 10px;
+  }
+  .fcard:hover { background: #fff3c2; }
+  .fcard.on { outline: 3px solid var(--blue); outline-offset: 2px; }
+  .fcard .ftitle { font-size: 9px; line-height: 1.6; word-break: break-word; margin: 5px 0; }
+  .fcard .fmeta { font-size: 7px; color: var(--muted); line-height: 1.8; }
+  .typetag { display: inline-block; font-size: 7px; padding: 2px 5px; border: 2px solid #000; margin: 0 4px 3px 0; color: #000; }
+  .avstack { display: inline-flex; gap: 3px; vertical-align: middle; }
+  .avstack i { width: 12px; height: 12px; border: 2px solid #000; display: block; }
+  .fsection { background: #fffdf6; border: 3px solid #000; box-shadow: 4px 4px 0 #000; padding: 10px; margin-bottom: 12px; }
+  .fsection h3 { margin: 0 0 8px; font-size: 9px; }
+  .fline { display: grid; grid-template-columns: 70px 76px 92px 1fr; gap: 8px; font-size: 7.5px; padding: 4px 0; border-bottom: 1px solid #eee3c7; align-items: start; }
+  .fline .subj { white-space: normal; line-height: 1.6; }
+  .frow { display: flex; align-items: center; gap: 8px; font-size: 7.5px; padding: 4px 0; border-bottom: 1px solid #eee3c7; }
+  .frow .grow { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .frow.click { cursor: pointer; }
+  .frow.click:hover { background: var(--yellow); }
+  .guide { font-size: 8px; line-height: 2; }
+  .guide code { background: #fff; border: 2px solid #000; padding: 1px 5px; font-family: inherit; }
+  .typechip { font-size: 7px; padding: 4px 6px; border: 2px solid #000; box-shadow: 2px 2px 0 #000; cursor: pointer; user-select: none; }
+  .typechip.off { opacity: .3; }
+  .node.featdim { opacity: .1; }
+  .node.feathit circle { stroke: var(--blue); stroke-width: 5; }
+
   /* ---- graph marks ---- */
   .link { stroke: #6b6355; stroke-opacity: .45; stroke-width: 1.2; }
   .link.hot { stroke: var(--dex-red); stroke-opacity: .95; stroke-width: 2.4; }
@@ -292,6 +323,7 @@
     <div class="tabs">
       <button class="tab on" data-tab="graph"><i class="dot" style="background:var(--grass)"></i>GRAPH</button>
       <button class="tab" data-tab="index"><i class="dot" style="background:var(--electric)"></i>INDEX</button>
+      <button class="tab" data-tab="features"><i class="dot" style="background:var(--fire)"></i>FEATURES</button>
       <button class="tab" data-tab="git"><i class="dot" style="background:var(--blue)"></i>GIT</button>
       <button class="tab" data-tab="schema"><i class="dot" style="background:var(--dark)"></i>SCHEMA</button>
     </div>
@@ -312,6 +344,14 @@
   <div class="toolbar" id="bar-index" style="display:none">
     <input class="search" id="indexSearch" placeholder="FIND FUNCTION" />
     <span class="btn" style="cursor:default">CLICK A ROW FOR ITS LINEAGE</span>
+  </div>
+
+  <div class="toolbar" id="bar-features" style="display:none">
+    <input class="search" id="featureSearch" placeholder="FIND FEATURE, FILE OR PERSON" style="width:230px" />
+    <button class="btn on" id="featureByFeature">BY FEATURE</button>
+    <button class="btn" id="featureByPerson">BY PERSON</button>
+    <span id="typeChips" style="display:flex;gap:5px;flex-wrap:wrap"></span>
+    <button class="btn" id="featureRefresh" style="background:var(--blue);color:#fff">RE-READ GIT LOG</button>
   </div>
 
   <div class="toolbar" id="bar-git" style="display:none">
@@ -376,6 +416,13 @@
         <div class="dbhud" id="dbhud">NO SCHEMAS LOADED</div>
       </div>
       <div class="schema-host" id="schemaBody" style="display:none"></div>
+    </div>
+
+    <div class="view" id="view-features">
+      <div class="fwrap">
+        <div class="flist" id="featureList"></div>
+        <div class="fdetail" id="featureDetail"></div>
+      </div>
     </div>
 
     <div class="view" id="view-git">
@@ -452,7 +499,7 @@ window.addEventListener('error', function (e) {
   var query = '', tab = 'graph', lineageStack = [], authorColor = new Map();
   // Must match PROTOCOL_VERSION in src/protocol.ts. A payload older than this
   // means the running extension host predates this page - see the banner.
-  var EXPECTED_PROTOCOL = 5;
+  var EXPECTED_PROTOCOL = 6;
 
   var $ = function (id) { return document.getElementById(id); };
   var esc = function (s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); };
@@ -460,7 +507,7 @@ window.addEventListener('error', function (e) {
   /* ------------------------------------------------------------------ tabs */
   function showTab(name) {
     tab = name;
-    ['graph', 'index', 'git', 'schema'].forEach(function (t) {
+    ['graph', 'index', 'features', 'git', 'schema'].forEach(function (t) {
       $('view-' + t).classList.toggle('on', t === name);
       $('bar-' + t).style.display = t === name ? 'flex' : 'none';
       document.querySelector('.tab[data-tab="' + t + '"]').classList.toggle('on', t === name);
@@ -469,6 +516,7 @@ window.addEventListener('error', function (e) {
     if (name === 'index') { renderIndex(); }
     if (name === 'git') { renderGit(); }
     if (name === 'schema') { requestSchemas(false); }
+    if (name === 'features') { requestFeatures(false); }
   }
 
   /**
@@ -882,6 +930,9 @@ window.addEventListener('error', function (e) {
     renderRail();
   }
 
+  /** Function ids of the feature being shown in the graph, or null. */
+  var featureHighlight = null;
+
   function highlight() {
     var related = new Set();
     if (selected) {
@@ -892,6 +943,8 @@ window.addEventListener('error', function (e) {
       });
     }
     nodeG.selectAll('g.node')
+      .classed('feathit', function (d) { return !!featureHighlight && featureHighlight.has(d.id); })
+      .classed('featdim', function (d) { return !!featureHighlight && !featureHighlight.has(d.id); })
       .classed('sel', function (d) { return selected && d.id === selected.id; })
       .classed('dim', function (d) { return selected && !related.has(d.id); });
     linkG.selectAll('line')
@@ -1434,8 +1487,230 @@ window.addEventListener('error', function (e) {
   });
   $('gitSearch').addEventListener('input', renderGit);
 
+
+  /* ------------------------------------------------------------ features */
+  var featureData = null, featuresAsked = false, featureMode = 'feature';
+  var featureSel = null, personSel = null, typeOff = new Set();
+  var TYPE_COLOR = {
+    'feature': '#78C850', 'bug fix': '#EE8130', 'hotfix': '#DC0A2D', 'refactor': '#3B4CCA',
+    'performance': '#F8D030', 'security': '#7C538C', 'test': '#9BBC0F', 'docs': '#c9bfa6',
+    'style': '#f4a6c0', 'chore': '#b8b0a0'
+  };
+
+  function requestFeatures(force) {
+    if (!force && (featureData || featuresAsked)) { if (featureData) { renderFeatures(); } return; }
+    featuresAsked = true;
+    if (standalone) {
+      if (!featureData) {
+        $('featureList').innerHTML = '<div class="empty">No feature data in this snapshot. Re-run "Open Graph in Browser".</div>';
+      }
+      return;
+    }
+    $('featureList').innerHTML = '<div class="empty">Reading the git log...</div>';
+    vscode.postMessage({ type: 'features', force: !!force });
+  }
+
+  function typeTag(type) {
+    var light = type === 'hotfix' || type === 'refactor' || type === 'security';
+    return '<span class="typetag" style="background:' + (TYPE_COLOR[type] || '#ccc') +
+      (light ? ';color:#fff' : '') + '">' + esc(String(type).toUpperCase()) + '</span>';
+  }
+
+  function featureMatches(f, q) {
+    if (typeOff.has(f.primaryType)) { return false; }
+    if (!q) { return true; }
+    if (f.name.toLowerCase().indexOf(q) !== -1) { return true; }
+    if (f.authors.some(function (a) { return a.name.toLowerCase().indexOf(q) !== -1; })) { return true; }
+    if (f.files.some(function (x) { return x.path.toLowerCase().indexOf(q) !== -1; })) { return true; }
+    return f.functions.some(function (fn) { return fn.name.toLowerCase().indexOf(q) !== -1; });
+  }
+
+  function renderTypeChips() {
+    var present = {};
+    featureData.features.forEach(function (f) { present[f.primaryType] = (present[f.primaryType] || 0) + 1; });
+    $('typeChips').innerHTML = (featureData.types || []).filter(function (t) { return present[t]; }).map(function (t) {
+      return '<span class="typechip' + (typeOff.has(t) ? ' off' : '') + '" data-type="' + esc(t) + '" style="background:' +
+        (TYPE_COLOR[t] || '#ccc') + '">' + esc(t.toUpperCase()) + ' ' + present[t] + '</span>';
+    }).join('');
+    $('typeChips').querySelectorAll('.typechip').forEach(function (chip) {
+      chip.onclick = function () {
+        var t = chip.dataset.type;
+        if (typeOff.has(t)) { typeOff.delete(t); } else { typeOff.add(t); }
+        renderFeatures();
+      };
+    });
+  }
+
+  function guideHtml() {
+    return '<div class="fsection guide"><h3>WRITE COMMITS AS FEATURES</h3>' +
+      'Start a commit message with a type and a colon:<br/>' +
+      '<code>feature: get users from db</code><br/>' +
+      '<code>bug fix: users list crashes on empty page</code><br/>' +
+      '<code>refactor(users): split the repository layer</code><br/><br/>' +
+      'Commits with the <b>same title</b> join one feature. Add a <b>(scope)</b> to group different titles together.<br/>' +
+      'Types: feature, bug fix, hotfix, refactor, perf, security, test, docs, style, chore.<br/><br/>' +
+      'Shortcut: the tag button in Source Control, or the command <b>Blast Radius: Write Tagged Commit Message</b>, ' +
+      'fills the message box for you. It never commits.</div>';
+  }
+
+  function renderFeatures() {
+    if (!featureData) { return; }
+    var d = featureData;
+    renderTypeChips();
+    var q = ($('featureSearch').value || '').trim().toLowerCase();
+    var pct = d.totalCommits ? Math.round((d.taggedCommits / d.totalCommits) * 100) : 0;
+
+    var summary = '<div class="fsummary">' +
+      '<b>' + d.features.length + ' FEATURE' + (d.features.length === 1 ? '' : 'S') + '</b> from ' +
+      d.taggedCommits + ' of ' + d.totalCommits + ' commits (' + pct + '% tagged)<br/>' +
+      d.people.length + ' contributor' + (d.people.length === 1 ? '' : 's') +
+      ' &nbsp;|&nbsp; function history available for ' + d.functionsWithHistory + '/' + d.functionsTotal +
+      (d.error ? '<br/><b>' + esc(d.error) + '</b>' : '') + '</div>';
+
+    if (!d.features.length) {
+      var untagged = (d.untagged || []).slice(0, 12).map(function (u) {
+        return '<div class="fline"><span class="sha">' + esc(u.hash) + '</span><span>' + dateText(u.t) +
+          '</span><span>' + esc(u.author) + '</span><span class="subj">' + esc(u.subject) + '</span></div>';
+      }).join('');
+      $('featureList').innerHTML = summary + '<div class="empty">No tagged commits yet - nothing to group into features.</div>';
+      $('featureDetail').innerHTML = guideHtml() +
+        (untagged ? '<div class="fsection"><h3>RECENT UNTAGGED COMMITS</h3>' + untagged + '</div>' : '');
+      return;
+    }
+
+    if (featureMode === 'person') { renderPeople(summary, q); return; }
+
+    var shown = d.features.filter(function (f) { return featureMatches(f, q); });
+    $('featureList').innerHTML = summary + (shown.map(function (f) {
+      return '<div class="fcard' + (featureSel === f.key ? ' on' : '') + '" data-key="' + esc(f.key) +
+        '" style="border-left-color:' + (TYPE_COLOR[f.primaryType] || '#000') + '">' +
+        Object.keys(f.typeCounts).map(typeTag).join('') +
+        '<div class="ftitle">' + esc(f.name) + '</div>' +
+        '<div class="fmeta">' + f.commits.length + ' commit' + (f.commits.length === 1 ? '' : 's') +
+        ' &nbsp;|&nbsp; ' + f.files.length + ' files &nbsp;|&nbsp; ' + f.functions.length + ' functions<br/>' +
+        '<span class="avstack">' + f.authors.slice(0, 6).map(function (a) {
+          return '<i title="' + esc(a.name) + '" style="background:' + colorFor(a.email) + '"></i>';
+        }).join('') + '</span> ' + esc(f.authors.map(function (a) { return a.name; }).join(', ')) +
+        '<br/>' + dateText(f.firstChange) + ' - ' + dateText(f.lastChange) + '</div></div>';
+    }).join('') || '<div class="empty">No features match.</div>');
+
+    $('featureList').querySelectorAll('.fcard').forEach(function (card) {
+      card.onclick = function () { featureSel = card.dataset.key; renderFeatures(); };
+    });
+
+    var current = shown.filter(function (f) { return f.key === featureSel; })[0] || null;
+    $('featureDetail').innerHTML = current ? featureDetailHtml(current) : guideHtml();
+    if (current) { wireFeatureDetail(current); }
+  }
+
+  function featureDetailHtml(f) {
+    var total = f.commits.length;
+    var people = f.authors.map(function (a) {
+      return '<div class="frow"><i style="width:12px;height:12px;border:2px solid #000;background:' + colorFor(a.email) + '"></i>' +
+        '<span class="grow">' + esc(a.name) + ' <span style="color:var(--muted)">' + esc(a.email) + '</span></span>' +
+        '<span class="bar" style="width:120px;height:10px"><i style="width:' + Math.round((a.commits / total) * 100) +
+        '%;background:' + colorFor(a.email) + '"></i></span><span>' + a.commits + '</span></div>';
+    }).join('');
+    var commits = f.commits.map(function (c) {
+      return '<div class="fline"><span class="sha">' + esc(c.hash) + '</span><span>' + dateText(c.t) + '</span>' +
+        '<span>' + esc(c.author) + '</span><span class="subj">' + typeTag(c.type) + esc(c.title) +
+        (c.breaking ? ' <b style="color:var(--dex-red)">BREAKING</b>' : '') +
+        '<br/><span style="color:var(--muted)">' + c.files.length + ' file' + (c.files.length === 1 ? '' : 's') + '</span></span></div>';
+    }).join('');
+    var files = f.files.map(function (x) {
+      return '<div class="frow"><span class="grow">' + esc(x.path) + '</span><span>' + x.commits + ' commit' + (x.commits === 1 ? '' : 's') + '</span></div>';
+    }).join('');
+    var fns = f.functions.length
+      ? f.functions.map(function (fn) {
+          return '<div class="frow click" data-id="' + esc(fn.id) + '"><i class="swatch" style="width:10px;height:10px;border:2px solid #000;background:' +
+            (TIER_COLOR[fn.tier] || '#ccc') + '"></i><span class="grow">' + esc(fn.name) +
+            ' <span style="color:var(--muted)">' + esc(fn.file) + ':' + (fn.startLine + 1) + '</span></span><span>risk ' + fn.score + '</span></div>';
+        }).join('')
+      : '<div class="empty">No indexed function\'s line history includes these commits - they may only touch non-code files, ' +
+        'or history is still loading.</div>';
+
+    return '<div class="fsection">' + Object.keys(f.typeCounts).map(typeTag).join('') +
+      '<div class="mon" style="margin:6px 0">' + esc(f.name) + '</div>' +
+      '<div class="path">' + (f.scope ? 'scope: ' + esc(f.scope) + ' &nbsp;|&nbsp; ' : '') + total + ' commits &nbsp;|&nbsp; ' +
+      dateText(f.firstChange) + ' - ' + dateText(f.lastChange) + '</div>' +
+      (f.functions.length ? '<button class="btn" id="featureShowGraph">SHOW ' + f.functions.length + ' FUNCTIONS IN GRAPH</button>' : '') +
+      '</div>' +
+      '<div class="fsection"><h3>WHO WORKED ON IT</h3>' + people + '</div>' +
+      '<div class="fsection"><h3>FUNCTIONS (' + f.functions.length + ')</h3>' + fns + '</div>' +
+      '<div class="fsection"><h3>FILES (' + f.files.length + ')</h3>' + files + '</div>' +
+      '<div class="fsection"><h3>COMMITS</h3>' + commits + '</div>';
+  }
+
+  function wireFeatureDetail(f) {
+    var btn = $('featureShowGraph');
+    if (btn) {
+      btn.onclick = function () {
+        featureHighlight = new Set(f.functions.map(function (fn) { return fn.id; }));
+        showTab('graph');
+        highlight();
+        $('hud').innerHTML = 'FEATURE: ' + esc(f.name.toUpperCase()) + '<br/>' + f.functions.length +
+          ' FUNCTIONS HIGHLIGHTED - click empty canvas to clear';
+      };
+    }
+    $('featureDetail').querySelectorAll('.frow.click').forEach(function (row) {
+      row.onclick = function () {
+        var n = byId.get(row.dataset.id);
+        if (n) { select(n, false); openLineage(n); }
+      };
+    });
+  }
+
+  function renderPeople(summary, q) {
+    var d = featureData;
+    var people = d.people.filter(function (p) {
+      if (!q) { return true; }
+      return p.name.toLowerCase().indexOf(q) !== -1 || p.features.some(function (f) { return f.name.toLowerCase().indexOf(q) !== -1; });
+    });
+    $('featureList').innerHTML = summary + (people.map(function (p) {
+      return '<div class="fcard' + (personSel === p.email ? ' on' : '') + '" data-email="' + esc(p.email) +
+        '" style="border-left-color:' + colorFor(p.email) + '">' +
+        '<div class="ftitle">' + esc(p.name) + '</div>' +
+        '<div class="fmeta">' + p.features.length + ' feature' + (p.features.length === 1 ? '' : 's') +
+        ' &nbsp;|&nbsp; ' + p.commits + ' tagged commits<br/>' + esc(p.email) + '</div></div>';
+    }).join('') || '<div class="empty">No people match.</div>');
+    $('featureList').querySelectorAll('.fcard').forEach(function (card) {
+      card.onclick = function () { personSel = card.dataset.email; renderFeatures(); };
+    });
+
+    var person = people.filter(function (p) { return p.email === personSel; })[0];
+    if (!person) { $('featureDetail').innerHTML = '<div class="fsection guide">Pick a person to see the features they worked on.</div>'; return; }
+    $('featureDetail').innerHTML = '<div class="fsection"><div class="mon">' + esc(person.name) + '</div>' +
+      '<div class="path">' + esc(person.email) + ' &nbsp;|&nbsp; ' + person.commits + ' tagged commits</div></div>' +
+      '<div class="fsection"><h3>FEATURES</h3>' + person.features.map(function (f) {
+        return '<div class="frow click" data-key="' + esc(f.key) + '">' + typeTag(f.primaryType) +
+          '<span class="grow">' + esc(f.name) + '</span><span>' + f.commits + ' commit' + (f.commits === 1 ? '' : 's') + '</span></div>';
+      }).join('') + '</div>';
+    $('featureDetail').querySelectorAll('.frow.click').forEach(function (row) {
+      row.onclick = function () {
+        featureMode = 'feature';
+        featureSel = row.dataset.key;
+        $('featureByFeature').classList.add('on');
+        $('featureByPerson').classList.remove('on');
+        renderFeatures();
+      };
+    });
+  }
+
+  $('featureSearch').addEventListener('input', renderFeatures);
+  $('featureRefresh').addEventListener('click', function () { requestFeatures(true); });
+  $('featureByFeature').addEventListener('click', function () {
+    featureMode = 'feature';
+    $('featureByFeature').classList.add('on'); $('featureByPerson').classList.remove('on');
+    renderFeatures();
+  });
+  $('featureByPerson').addEventListener('click', function () {
+    featureMode = 'person';
+    $('featureByPerson').classList.add('on'); $('featureByFeature').classList.remove('on');
+    renderFeatures();
+  });
+
   /* ------------------------------------------------------------- controls */
-  svg.on('click', function () { selected = null; highlight(); renderRail(); });
+  svg.on('click', function () { selected = null; featureHighlight = null; highlight(); renderRail(); });
   $('search').addEventListener('input', function (e) {
     query = e.target.value.trim().toLowerCase();
     applyFilter();
@@ -1504,6 +1779,7 @@ window.addEventListener('error', function (e) {
       $('staleHost').style.display = 'block';
     }
     if (msg.schema) { renderSchema(msg.schema); }
+    if (msg.features) { featureData = msg.features; if (tab === 'features') { renderFeatures(); } }
     if (msg.viewMode === 'schema') { showTab('schema'); }
     var prev = new Map(nodes.map(function (n) { return [n.id, n]; }));
     nodes = msg.nodes.map(function (n, i) {

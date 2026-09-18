@@ -665,6 +665,108 @@ async function buildPayload() {
   check("spread reports what it did",
     doc.getElementById("dbhud").textContent.includes("SPREAD"), true);
 
+  // ---------------- features view ----------------
+  const firstFn = payload.nodes[0];
+  const secondFn = payload.nodes[1];
+  const sampleFeatures = {
+    features: [
+      {
+        key: "title:get users from db", name: "get users from db", scope: null, primaryType: "feature",
+        typeCounts: { feature: 2 },
+        commits: [
+          { hash: "aaaa1111", type: "feature", title: "get users from db", author: "Ada", email: "ada@x", t: Date.now(), files: ["src/users.js"], breaking: false },
+          { hash: "bbbb2222", type: "feature", title: "get users from db", author: "Sam", email: "sam@x", t: Date.now() - 1e8, files: ["src/users.js"], breaking: false },
+        ],
+        authors: [{ name: "Ada", email: "ada@x", commits: 1 }, { name: "Sam", email: "sam@x", commits: 1 }],
+        files: [{ path: "src/users.js", commits: 2 }],
+        functions: [{ id: firstFn.id, name: firstFn.name, file: firstFn.file, startLine: firstFn.startLine, score: firstFn.score, tier: firstFn.tier }],
+        firstChange: Date.now() - 1e8, lastChange: Date.now(),
+      },
+      {
+        key: "scope:billing", name: "billing", scope: "billing", primaryType: "bug fix",
+        typeCounts: { "bug fix": 1, refactor: 1 },
+        commits: [{ hash: "cccc3333", type: "bug fix", title: "rounding", author: "Sam", email: "sam@x", t: Date.now(), files: ["src/billing.js"], breaking: true }],
+        authors: [{ name: "Sam", email: "sam@x", commits: 1 }],
+        files: [{ path: "src/billing.js", commits: 1 }],
+        functions: [{ id: secondFn.id, name: secondFn.name, file: secondFn.file, startLine: secondFn.startLine, score: secondFn.score, tier: secondFn.tier }],
+        firstChange: Date.now(), lastChange: Date.now(),
+      },
+    ],
+    people: [
+      { name: "Sam", email: "sam@x", commits: 2, features: [{ key: "scope:billing", name: "billing", primaryType: "bug fix", commits: 1 }, { key: "title:get users from db", name: "get users from db", primaryType: "feature", commits: 1 }] },
+      { name: "Ada", email: "ada@x", commits: 1, features: [{ key: "title:get users from db", name: "get users from db", primaryType: "feature", commits: 1 }] },
+    ],
+    totalCommits: 4, taggedCommits: 3,
+    untagged: [{ hash: "dddd4444", subject: "added readme", author: "Priya", t: Date.now() }],
+    functionsWithHistory: 50, functionsTotal: 60,
+    types: ["feature", "bug fix", "hotfix", "refactor", "performance", "security", "test", "docs", "style", "chore"],
+  };
+
+  const featTab = doc.querySelector('.tab[data-tab="features"]');
+  check("FEATURES tab exists", !!featTab, true);
+  click(featTab);
+  check("FEATURES tab activates", doc.getElementById("view-features").classList.contains("on"), true);
+
+  window.dispatchEvent(new window.MessageEvent("message", {
+    data: Object.assign({}, payload, { protocol: PROTOCOL_VERSION, features: sampleFeatures }),
+  }));
+  await new Promise((r) => setTimeout(r, 200));
+  check("feature cards render", doc.querySelectorAll("#featureList .fcard").length, 2);
+  check("summary reports tagging coverage",
+    doc.querySelector("#featureList .fsummary").textContent.includes("3 of 4 commits"), true);
+  check("type chips reflect present types", doc.querySelectorAll("#typeChips .typechip").length, 2);
+  check("no selection shows the format guide", doc.getElementById("featureDetail").textContent.includes("feature: get users from db"), true);
+
+  click(doc.querySelector('#featureList .fcard[data-key="title:get users from db"]'));
+  const fdetail = doc.getElementById("featureDetail").textContent;
+  check("detail lists who worked on it", fdetail.includes("WHO WORKED ON IT") && fdetail.includes("Ada") && fdetail.includes("Sam"), true);
+  check("detail lists files", fdetail.includes("src/users.js"), true);
+  check("detail lists functions", fdetail.includes(firstFn.name), true);
+  check("detail lists commits", fdetail.includes("aaaa1111"), true);
+
+  // search narrows
+  const fsearch = doc.getElementById("featureSearch");
+  fsearch.value = "billing";
+  fsearch.dispatchEvent(new window.Event("input", { bubbles: true }));
+  check("feature search narrows", doc.querySelectorAll("#featureList .fcard").length, 1);
+  fsearch.value = "";
+  fsearch.dispatchEvent(new window.Event("input", { bubbles: true }));
+
+  // type chip filters
+  click(doc.querySelector('#typeChips .typechip[data-type="bug fix"]'));
+  check("type chip hides that type", doc.querySelectorAll("#featureList .fcard").length, 1);
+  click(doc.querySelector('#typeChips .typechip[data-type="bug fix"]'));
+
+  // by person
+  click(doc.getElementById("featureByPerson"));
+  check("BY PERSON lists people", doc.querySelectorAll("#featureList .fcard").length, 2);
+  click(doc.querySelector('#featureList .fcard[data-email="sam@x"]'));
+  check("person shows their features",
+    doc.getElementById("featureDetail").textContent.includes("billing") &&
+    doc.getElementById("featureDetail").textContent.includes("get users from db"), true);
+  click(doc.querySelector('#featureDetail .frow.click[data-key="scope:billing"]'));
+  check("clicking a person's feature opens it", doc.getElementById("featureDetail").textContent.includes("BREAKING"), true);
+
+  // show in graph
+  click(doc.getElementById("featureShowGraph"));
+  check("SHOW IN GRAPH switches to the graph", doc.getElementById("view-graph").classList.contains("on"), true);
+  check("feature functions are highlighted", doc.querySelectorAll("g.node.feathit").length, 1);
+  check("everything else is dimmed", doc.querySelectorAll("g.node.featdim").length, payload.nodes.length - 1);
+
+  // empty state for a repo with no tagged commits
+  window.dispatchEvent(new window.MessageEvent("message", {
+    data: Object.assign({}, payload, {
+      protocol: PROTOCOL_VERSION,
+      features: Object.assign({}, sampleFeatures, { features: [], people: [], taggedCommits: 0, totalCommits: 24 }),
+    }),
+  }));
+  click(featTab);
+  await new Promise((r) => setTimeout(r, 150));
+  check("untagged repo explains itself", doc.getElementById("featureList").textContent.includes("0 of 24 commits"), true);
+  check("untagged repo shows the guide", doc.getElementById("featureDetail").textContent.includes("WRITE COMMITS AS FEATURES"), true);
+  check("untagged repo lists recent untagged commits", doc.getElementById("featureDetail").textContent.includes("added readme"), true);
+  click(doc.querySelector('.tab[data-tab="graph"]'));
+
   // ---------------- expandable git history ----------------
   click(doc.querySelector('.tab[data-tab="git"]'));
   const gitRow = doc.querySelector("#gitTable tbody tr[data-id]");
