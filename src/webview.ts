@@ -96,7 +96,7 @@ export class GraphPanel {
       return;
     }
     if (msg.type === "browser") {
-      void openInBrowser(this.context, this.graph, this.risk);
+      void openInBrowser(this.context, this.graph, this.risk, msg.id);
     }
   }
 
@@ -155,11 +155,13 @@ export class GraphPanel {
 export function serializeGraph(
   graph: CallGraph,
   risk: RiskService,
+  focusId?: string,
 ): {
   type: "graph";
   nodes: WireNode[];
   edges: { from: string; to: string }[];
   summary: string;
+  focus?: string;
 } {
   const nodes: WireNode[] = [];
   const edges: { from: string; to: string }[] = [];
@@ -196,7 +198,7 @@ export function serializeGraph(
     `${nodes.length} functions · ${edges.length} edges · ${coverage}` +
     (risk.gitAvailable ? "" : " · no git history");
 
-  return { type: "graph", nodes, edges, summary };
+  return { type: "graph", nodes, edges, summary, focus: focusId };
 }
 
 /**
@@ -209,8 +211,9 @@ export async function openInBrowser(
   context: vscode.ExtensionContext,
   graph: CallGraph,
   risk: RiskService,
+  focusId?: string,
 ): Promise<void> {
-  const payload = serializeGraph(graph, risk);
+  const payload = serializeGraph(graph, risk, focusId);
   if (payload.nodes.length === 0) {
     vscode.window.showWarningMessage(
       "Blast Radius: nothing indexed yet, so there is no graph to open.",

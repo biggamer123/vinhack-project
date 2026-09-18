@@ -842,7 +842,7 @@
           }
         });
         document.getElementById("browser").addEventListener("click", () => {
-          vscode.postMessage({ type: "browser" });
+          vscode.postMessage({ type: "browser", id: selected && selected.id });
         });
         document.getElementById("reset").addEventListener("click", () => {
           svg.transition().duration(400).call(zoom.transform, d3.zoomIdentity);

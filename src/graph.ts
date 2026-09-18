@@ -93,6 +93,19 @@ export class CallGraph {
       .sort((a, b) => a.startLine - b.startLine);
   }
 
+  /** Innermost function declared at a given 0-based line within a file. */
+  nodeAtLine(file: string, line: number): FunctionNode | undefined {
+    let best: FunctionNode | undefined;
+    for (const node of this.nodesInFile(file)) {
+      if (line >= node.startLine && line <= node.endLine) {
+        if (!best || node.startLine > best.startLine) {
+          best = node;
+        }
+      }
+    }
+    return best;
+  }
+
   /** Replace everything known about one file. Does not rebuild edges - call resolveEdges(). */
   setFile(file: string, index: FileIndex): void {
     this.removeFile(file, { keepEdgesStale: true });

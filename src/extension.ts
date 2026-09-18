@@ -83,11 +83,11 @@ export async function activate(
         extensionContext,
         graph,
         risk,
-        typeof id === "string" ? id : undefined,
+        typeof id === "string" ? id : id ?? activeFunctionId(),
       );
     }),
     vscode.commands.registerCommand("blastradius.openInBrowser", () =>
-      openInBrowser(extensionContext, graph, risk),
+      openInBrowser(extensionContext, graph, risk, activeFunctionId()),
     ),
     vscode.commands.registerCommand("blastradius.reloadCoverage", async () => {
       const root = workspaceRoot();
@@ -139,6 +139,15 @@ export function deactivate(): void {
 
 function workspaceRoot(): string | undefined {
   return vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+}
+
+function activeFunctionId(): string | undefined {
+  const editor = vscode.window.activeTextEditor;
+  if (!editor || editor.document.uri.scheme !== "file") {
+    return undefined;
+  }
+
+  return graph.nodeAtLine(editor.document.uri.fsPath, editor.selection.active.line)?.id;
 }
 
 /** Full workspace scan, then a background pass for git history. */
