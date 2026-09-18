@@ -6,6 +6,7 @@
  * template literal avoids escaping every ${} the D3 code needs.
  */
 import * as fs from "fs";
+import * as http from "http";
 import * as os from "os";
 import * as path from "path";
 import * as vscode from "vscode";
@@ -227,8 +228,44 @@ export async function openInBrowser(
     new Date().toLocaleString(),
   );
 
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "blast-radius-"));
-  const file = path.join(dir, "blast-radius.html");
-  fs.writeFileSync(file, html);
-  await vscode.env.openExternal(vscode.Uri.file(file));
+  const server = http.createServer(
+    (req: http.IncomingMessage, res: http.ServerResponse) => {
+      res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+      res.end(html);
+    },
+  );
+
+  try {
+    await new Promise<void>((resolve, reject) => {
+      server.once("error", reject);
+      server.listen(0, "127.0.0.1", async () => {
+        const address = server.address();
+        if (!address || typeof address === "string") {
+          reject(new Error("Could not determine a local port for the graph preview."));
+          return;
+        }
+
+        const url = `http://127.0.0.1:${address.port}/blast-radius.html`;
+
+        const requestStarted = new Promise<void>((requestResolve) => {
+          server.once("request", () => requestResolve());
+        });
+
+        try {
+          await vscode.env.openExternal(vscode.Uri.parse(url));
+          await Promise.race([
+            requestStarted,
+            new Promise<void>((timeoutResolve) => {
+              setTimeout(timeoutResolve, 5000);
+            }),
+          ]);
+          resolve();
+        } catch (err) {
+          reject(err);
+        }
+      });
+    });
+  } finally {
+    server.close();
+  }
 }
