@@ -13,7 +13,7 @@ const { CallGraph } = require("../out/graph");
 const { parseLcov, coverageForRange } = require("../out/lcov");
 const { computeScore, tierFor } = require("../out/score");
 const { findRepoRoot, historyForRange } = require("../out/git");
-const { buildStandaloneHtml } = require("../out/standalone");
+const { buildStandaloneHtml, removeCdnScripts } = require("../out/standalone");
 
 const root = path.resolve(process.argv[2] || "demo");
 const SKIP = ["node_modules", "dist", "build", "out", ".git", "coverage"];
@@ -296,15 +296,14 @@ async function buildPayload() {
     path.join(__dirname, "..", "media", "graph.html"),
     "utf8",
   );
-  const standaloneHtml = buildStandaloneHtml(
-    template,
-    payload,
-    "test stamp",
-  ).replace(/<script [^>]*src="https:\/\/cdnjs[^"]*"[^>]*><\/script>/, "");
+  const standaloneHtml = removeCdnScripts(
+    buildStandaloneHtml(template, payload, "test stamp"),
+  );
+  // Anchor on text a formatter cannot rewrite: the page's own typeof guard.
   check(
     "bootstrap is injected before the page script",
-    standaloneHtml.indexOf("window.__blastRadiusData") <
-      standaloneHtml.indexOf("const vscode = (typeof acquireVsCodeApi"),
+    standaloneHtml.indexOf("__blastRadiusData") <
+      standaloneHtml.indexOf("acquireVsCodeApi ==="),
   );
 
   const dom2 = new JSDOM(standaloneHtml, {
@@ -392,6 +391,31 @@ async function buildPayload() {
     "watchdog explains an empty canvas",
     w3.document.getElementById("hud").innerHTML.includes("NO GRAPH DATA"),
   );
+
+  // --- a formatter rewrapping the template must not break the browser export ---
+  // Regression: the injector used to anchor on `<script ` with a literal space.
+  // Prettier split that tag across lines in media/graph.html, so OPEN IN BROWSER
+  // threw "could not find the d3 script tag" for anyone who pulled the repo.
+  const reformatted = template
+    .replace(/<script\s+nonce/g, "<script\n      nonce")
+    .replace(/\ssrc="https/g, '\n      src="https')
+    .replace(/"><\/script>/g, '"\n    ></script>')
+    .replace(
+      /<meta http-equiv="Content-Security-Policy"\s+content=/,
+      '<meta\n      http-equiv="Content-Security-Policy"\n      content=',
+    );
+  let reformatOk = false;
+  let reformatErr = "";
+  try {
+    const out = buildStandaloneHtml(reformatted, payload, "reformatted");
+    reformatOk =
+      out.indexOf("__blastRadiusData") < out.indexOf("acquireVsCodeApi ===") &&
+      !out.includes("Content-Security-Policy") &&
+      !out.includes("{{");
+  } catch (e) {
+    reformatErr = " [" + e.message + "]";
+  }
+  check("builds from a reformatted template" + reformatErr, reformatOk, true);
 
   console.log(
     failures ? `\n${failures} FAILURE(S)` : "\nall webview checks passed",

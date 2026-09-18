@@ -5,11 +5,11 @@
  * it runs from a file:// URL with no extension host behind it.
  *
  * Dependency-free so scripts/check-webview.js can verify the produced page
- * actually boots - the ordering here is load-bearing, see buildStandaloneHtml.
+ * actually boots - the injection point here is load-bearing, see below.
  */
 
 export interface StandalonePayload {
-  type: "graph";
+  type: 'graph';
   nodes: unknown[];
   edges: unknown[];
   summary: string;
@@ -18,24 +18,13 @@ export interface StandalonePayload {
 export function buildStandaloneHtml(
   template: string,
   payload: StandalonePayload,
-  stamp: string,
+  stamp: string
 ): string {
   const data = JSON.stringify({
     ...payload,
     standalone: true,
     summary: `${payload.summary} · snapshot ${stamp}`,
   });
-
-  // The stub MUST be injected before the page's own script: that script calls
-  // acquireVsCodeApi() on its first line, and outside a webview the call would
-  // throw and take the whole page down with it (blank canvas, stuck on
-  // "booting dex…"). Anchor on the d3 <script> tag, which precedes it.
-  const D3_TAG = /<script [^>]*src="https:\/\/cdnjs[^"]*"[^>]*><\/script>/;
-  if (!D3_TAG.test(template)) {
-    throw new Error(
-      "graph.html: could not find the d3 script tag to inject before",
-    );
-  }
 
   const bootstrap = `<script nonce="standalone">
       // No extension host here: swallow the messages the page would post back.
@@ -44,14 +33,34 @@ export function buildStandaloneHtml(
       window.addEventListener('load', () => setTimeout(() => {
         window.dispatchEvent(new MessageEvent('message', { data: window.__blastRadiusData }));
       }, 60));
-    </script>\n`;
+    </script>
+    `;
+
+  // The bootstrap MUST run before the page's own script, which reads
+  // window.__blastRadiusData on load and calls acquireVsCodeApi() near the top.
+  // Anchor on the FIRST <script> in the document, whatever it happens to be:
+  // matching one specific tag is brittle, because a formatter can rewrap its
+  // attributes across lines at any time. (One did, and broke this.)
+  const firstScript = template.search(/<script\b/i);
+  if (firstScript === -1) {
+    throw new Error('graph.html: no <script> tag found, cannot inject the standalone bootstrap');
+  }
+
+  const injected = template.slice(0, firstScript) + bootstrap + template.slice(firstScript);
 
   return (
-    template
+    injected
       // The CSP meta targets the webview sandbox; a file:// page needs its own rules.
-      .replace(/<meta http-equiv="Content-Security-Policy"[^>]*>/, "")
-      .replace(/\{\{nonce\}\}/g, "standalone")
-      .replace(/\{\{cspSource\}\}/g, "")
-      .replace(D3_TAG, (tag) => bootstrap + tag)
+      .replace(/<meta\s+http-equiv="Content-Security-Policy"[^>]*>/i, '')
+      .replace(/\{\{nonce\}\}/g, 'standalone')
+      .replace(/\{\{cspSource\}\}/g, '')
   );
+}
+
+/**
+ * Strip CDN <script> tags. Used by the headless checks, which supply their own
+ * copy of d3 rather than reaching the network.
+ */
+export function removeCdnScripts(html: string): string {
+  return html.replace(/<script\b[^>]*\bsrc\s*=\s*"https:\/\/[^"]*"[^>]*>\s*<\/script>/gi, '');
 }
