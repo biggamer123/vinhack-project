@@ -21,7 +21,7 @@ function walk(dir, acc = []) {
     if (SKIP.includes(entry.name)) continue;
     const full = path.join(dir, entry.name);
     if (entry.isDirectory()) walk(full, acc);
-    else if (/\.(js|jsx|mjs|cjs|ts|mts|cts|tsx)$/.test(entry.name))
+    else if (/\.(js|jsx|mjs|cjs|ts|mts|cts|tsx|go)$/.test(entry.name))
       acc.push(full);
   }
   return acc;

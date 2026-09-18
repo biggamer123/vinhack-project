@@ -12,7 +12,8 @@ import * as path from "path";
 import * as vscode from "vscode";
 import { CallGraph } from "./graph";
 import { RiskService, tierFor } from "./risk";
-import { detectDatabaseSchemas, schemaDiagramHtml } from "./schema";
+import { scanDatabaseSchemas, schemaDiagramHtml } from "./schema";
+import { PROTOCOL_VERSION } from "./protocol";
 import { buildStandaloneHtml } from "./standalone";
 
 interface WireNode {
@@ -47,6 +48,13 @@ export class GraphPanel {
   private ready = false;
   private schemaVisible = false;
   private schemaHtml = "";
+  private schemaInfo: {
+    filesScanned: number;
+    schemasFound: number;
+    usedFallback: boolean;
+    root: string;
+    error?: string;
+  } | null = null;
   /** Function the user clicked in a CodeLens, to select once the page is up. */
   focusId: string | undefined;
 
@@ -129,21 +137,29 @@ export class GraphPanel {
       return;
     }
     this.schemaVisible = true;
-    const root = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
-    if (!root) {
-      this.schemaHtml = schemaDiagramHtml([]);
-      this.update();
-      return;
-    }
+    const root = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? "";
+
     try {
-      const schemas = await detectDatabaseSchemas(root);
-      this.schemaHtml = schemaDiagramHtml(schemas);
+      const scan = await scanDatabaseSchemas(root);
+      this.schemaHtml = schemaDiagramHtml(scan.schemas);
+      // Report the scan itself, so "no schemas" can be told apart from
+      // "nothing was scanned" without guessing.
+      this.schemaInfo = {
+        filesScanned: scan.filesScanned,
+        schemasFound: scan.schemas.length,
+        usedFallback: scan.usedFallback,
+        root,
+        error: scan.error,
+      };
     } catch (err) {
-      this.schemaHtml =
-        '<div style="padding:24px;color:#eee;font-family:system-ui">' +
-        "Schema detection failed: " +
-        String(err) +
-        "</div>";
+      this.schemaHtml = "";
+      this.schemaInfo = {
+        filesScanned: 0,
+        schemasFound: 0,
+        usedFallback: false,
+        root,
+        error: String(err),
+      };
     }
     this.update();
   }
@@ -175,8 +191,10 @@ export class GraphPanel {
     this.panel.webview.postMessage({
       ...payload,
       focus: this.focusId,
+      protocol: PROTOCOL_VERSION,
       viewMode: this.schemaVisible ? "schema" : "graph",
       schemaHtml: this.schemaHtml,
+      schemaInfo: this.schemaInfo,
     });
     this.focusId = undefined; // one-shot: a later refresh should not yank the view back
   }

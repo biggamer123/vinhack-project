@@ -7,6 +7,8 @@
  * database engine.
  */
 
+import * as fs from "fs";
+import * as path from "path";
 import * as vscode from "vscode";
 
 export type SchemaKind = "sql" | "nosql";
@@ -507,21 +509,90 @@ export function schemaDiagramHtml(schemas: DatabaseSchema[]): string {
     </html>`;
 }
 
-export async function detectDatabaseSchemas(root: string): Promise<DatabaseSchema[]> {
-  const uris = await vscode.workspace.findFiles(SOURCE_GLOB, EXCLUDE, 1000);
-  const results: DatabaseSchema[] = [];
+export interface SchemaScanResult {
+  schemas: DatabaseSchema[];
+  filesScanned: number;
+  usedFallback: boolean;
+  error?: string;
+}
 
-  for (const uri of uris) {
+/**
+ * Scan the workspace for schema declarations and report how the scan went.
+ *
+ * `vscode.workspace.findFiles` can come back empty for reasons that are
+ * invisible from the UI (search excludes, a workspace whose folders differ from
+ * `root`, an extremely large repo hitting the result cap). When it finds nothing
+ * we walk the filesystem directly rather than reporting "no schemas found",
+ * which is a very different statement from "nothing was even looked at".
+ */
+export async function scanDatabaseSchemas(root: string): Promise<SchemaScanResult> {
+  let files: string[] = [];
+  let usedFallback = false;
+
+  try {
+    const uris = await vscode.workspace.findFiles(SOURCE_GLOB, EXCLUDE, 4000);
+    files = uris.map((uri) => uri.fsPath);
+  } catch {
+    files = [];
+  }
+
+  if (files.length === 0 && root) {
+    usedFallback = true;
+    files = walkForSchemaFiles(root);
+  }
+
+  const schemas: DatabaseSchema[] = [];
+  let error: string | undefined;
+  for (const file of files) {
     try {
-      const bytes = await vscode.workspace.fs.readFile(uri);
-      const text = Buffer.from(bytes).toString("utf8");
-      for (const schema of extractDatabaseSchemas(uri.fsPath, text)) {
-        results.push(schema);
+      const text = fs.readFileSync(file, "utf8");
+      for (const schema of extractDatabaseSchemas(file, text)) {
+        schemas.push(schema);
       }
-    } catch {
-      // Skip unreadable files.
+    } catch (err) {
+      error = String(err);
     }
   }
 
-  return results;
+  return { schemas, filesScanned: files.length, usedFallback, error };
+}
+
+/** Filesystem fallback for the file discovery above. */
+function walkForSchemaFiles(root: string): string[] {
+  const SKIP = new Set([
+    "node_modules", "dist", "build", "out", ".git", "coverage",
+    ".next", ".nuxt", ".turbo", "vendor", "tmp",
+  ]);
+  const WANTED = /\.(js|jsx|mjs|cjs|ts|mts|cts|tsx|go|sql|prisma)$/i;
+  const found: string[] = [];
+
+  const walk = (dir: string, depth: number) => {
+    if (depth > 12 || found.length > 4000) {
+      return;
+    }
+    let entries: fs.Dirent[];
+    try {
+      entries = fs.readdirSync(dir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const entry of entries) {
+      if (SKIP.has(entry.name)) {
+        continue;
+      }
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        walk(full, depth + 1);
+      } else if (WANTED.test(entry.name)) {
+        found.push(full);
+      }
+    }
+  };
+
+  walk(root, 0);
+  return found;
+}
+
+export async function detectDatabaseSchemas(root: string): Promise<DatabaseSchema[]> {
+  return (await scanDatabaseSchemas(root)).schemas;
 }

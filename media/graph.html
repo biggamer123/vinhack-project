@@ -350,6 +350,13 @@
     </div>
   </div>
 
+  <div id="staleHost" style="display:none;background:var(--fire);border-bottom:4px solid #000;padding:9px 12px;font-size:9px;line-height:1.8">
+    <b>EXTENSION HOST IS OUT OF DATE.</b>
+    This page is newer than the running extension, so git history and schemas will look empty.
+    Installing a VSIX does not reload windows that are already open -
+    <b>quit VS Code completely (Cmd+Q) and reopen it</b>, then open the graph again.
+  </div>
+
   <div class="tip" id="tip"></div>
 
   <div class="modal-back" id="lineage">
@@ -397,6 +404,9 @@ window.addEventListener('error', function (e) {
   var selected = null, frozen = false, hideOrphans = false, standalone = false;
   var activeTiers = new Set(['low', 'medium', 'high', 'critical']);
   var query = '', tab = 'graph', lineageStack = [], authorColor = new Map();
+  // Must match PROTOCOL_VERSION in src/protocol.ts. A payload older than this
+  // means the running extension host predates this page - see the banner.
+  var EXPECTED_PROTOCOL = 4;
 
   var $ = function (id) { return document.getElementById(id); };
   var esc = function (s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); };
@@ -421,6 +431,40 @@ window.addEventListener('error', function (e) {
    * DETECT SCHEMAS button forces a refresh.
    */
   var schemaHtml = '', schemaAsked = false;
+
+  /**
+   * Show what the host found. When nothing was found, say what was actually
+   * scanned - "no schemas in 0 files" and "no schemas in 1,400 files" mean
+   * completely different things.
+   */
+  function renderSchemaReply(html, info) {
+    // An older host sends html with no scan info - trust the html in that case.
+    if (html && (!info || info.schemasFound > 0)) {
+      schemaHtml = html;
+      $('schemaBody').innerHTML = html;
+      return;
+    }
+    var note = '<div class="schema-empty">';
+    if (info && info.error) {
+      note += '<b>Schema scan hit an error.</b><br/>' + esc(info.error) + '<br/><br/>';
+    }
+    if (!info) {
+      note += '<b>No schemas returned.</b>';
+    } else if (info.filesScanned === 0) {
+      note += '<b>No files were scanned.</b><br/>Nothing under ' + esc(info.root || 'the workspace') +
+        ' matched .sql, .prisma, .go, .ts, .tsx, .js or .jsx.';
+    } else {
+      note += '<b>No SQL or NoSQL schema declarations found.</b><br/>' +
+        'Scanned ' + info.filesScanned + ' file' + (info.filesScanned === 1 ? '' : 's') +
+        ' under ' + esc(info.root || 'the workspace') + '.<br/><br/>' +
+        'Detection looks for CREATE TABLE statements, Prisma models, and Mongoose schemas.';
+    }
+    if (info && info.usedFallback) {
+      note += '<br/><br/><i>(VS Code\'s file search returned nothing, so the filesystem was walked directly.)</i>';
+    }
+    note += '<br/><br/>Press DETECT SCHEMAS to scan again.</div>';
+    $('schemaBody').innerHTML = note;
+  }
   function requestSchemas(force) {
     if (standalone) {
       if (!schemaHtml) {
@@ -466,22 +510,11 @@ window.addEventListener('error', function (e) {
     var vp = viewport();
 
     // Disconnected functions used to be flung to the edges by the charge force,
-    // leaving a tight hairball and a scatter of far-away specks. Park them in a
-    // tidy grid below the graph instead, and keep them out of the simulation.
+    // leaving a tight hairball and a scatter of far-away specks. They are kept
+    // out of the simulation and parked on a shelf, positioned after the graph
+    // has settled so the two can never overlap (see layoutOrphans below).
     var connected = nodes.filter(function (n) { return n.fanIn > 0 || n.fanOut > 0; });
     var orphans = nodes.filter(function (n) { return n.fanIn === 0 && n.fanOut === 0; });
-    var cols = Math.max(6, Math.ceil(Math.sqrt(orphans.length * 2.2)));
-    var gapX = 108, gapY = 34;
-    var topY = vp.h * 0.92;
-    orphans.forEach(function (n, i) {
-      n.fx = n.x = 40 + (i % cols) * gapX;
-      n.fy = n.y = topY + Math.floor(i / cols) * gapY;
-    });
-
-    orphanG.selectAll('text').data(orphans.length ? [orphans.length] : []).join('text')
-      .attr('class', 'orphan-label')
-      .attr('x', 40).attr('y', topY - 18)
-      .text(function (d) { return d + ' UNCALLED / NO CALLS OUT'; });
 
     var link = linkG.selectAll('line').data(links, function (d) { return d.source.id + '>' + d.target.id; });
     link.exit().remove();
@@ -530,9 +563,52 @@ window.addEventListener('error', function (e) {
       if (!isFinite(n.x) || !isFinite(n.y)) { n.x = vp.w / 2; n.y = vp.h / 2; }
     });
 
+    layoutOrphans(connected, orphans, vp);
     tick();
     applyFilter();
     fitView(0);
+  }
+
+  /**
+   * Park the uncalled functions on a labelled shelf below the settled graph.
+   * Placing them only after the simulation has finished means the shelf always
+   * clears the graph's real bounding box, however tall the graph turned out -
+   * a fixed fraction of the viewport used to leave the two overlapping on big
+   * codebases.
+   */
+  function layoutOrphans(connected, orphans, vp) {
+    orphanG.selectAll('*').remove();
+    if (!orphans.length) { return; }
+
+    var laid = connected.filter(function (n) { return isFinite(n.x) && isFinite(n.y); });
+    var left = laid.length ? d3.min(laid, function (n) { return n.x; }) : 40;
+    var right = laid.length ? d3.max(laid, function (n) { return n.x; }) : vp.w;
+    var bottom = laid.length ? d3.max(laid, function (n) { return n.y; }) : vp.h * 0.5;
+
+    var gapX = 120, gapY = 38;
+    var width = Math.max(right - left, vp.w * 0.6);
+    var cols = Math.max(4, Math.floor(width / gapX));
+    var startX = left;
+    var startY = bottom + 110; // clear of the graph and its labels
+
+    orphans.forEach(function (n, i) {
+      n.fx = n.x = startX + (i % cols) * gapX;
+      n.fy = n.y = startY + Math.floor(i / cols) * gapY;
+    });
+
+    var rows = Math.ceil(orphans.length / cols);
+    var shelfRight = startX + Math.min(orphans.length, cols) * gapX;
+
+    // A rule and a caption make the shelf read as a separate section.
+    orphanG.append('line')
+      .attr('x1', startX - 30).attr('x2', shelfRight)
+      .attr('y1', startY - 62).attr('y2', startY - 62)
+      .attr('stroke', '#000').attr('stroke-width', 2).attr('stroke-dasharray', '6 5');
+    orphanG.append('text')
+      .attr('class', 'orphan-label')
+      .attr('x', startX - 30).attr('y', startY - 40)
+      .text(orphans.length + ' UNCALLED - no callers and no calls out (HIDE ORPHANS to drop them)');
+    void rows;
   }
 
   function tick() {
@@ -1142,9 +1218,11 @@ window.addEventListener('error', function (e) {
       standalone = true;
       $('browser').style.display = 'none';
     }
-    if (msg.schemaHtml) {
-      schemaHtml = msg.schemaHtml;
-      $('schemaBody').innerHTML = schemaHtml;
+    if (!standalone && (msg.protocol || 0) < EXPECTED_PROTOCOL) {
+      $('staleHost').style.display = 'block';
+    }
+    if (msg.schemaHtml || msg.schemaInfo) {
+      renderSchemaReply(msg.schemaHtml, msg.schemaInfo);
     }
     if (msg.viewMode === 'schema') { showTab('schema'); }
     var prev = new Map(nodes.map(function (n) { return [n.id, n]; }));

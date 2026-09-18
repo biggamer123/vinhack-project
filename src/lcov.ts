@@ -8,8 +8,36 @@ import * as path from "path";
 
 export type LcovIndex = Map<string, Map<number, number>>;
 
+/**
+ * Index key for a source path.
+ *
+ * lcov files are written by whatever tool ran the tests, so their SF: records
+ * may use a different separator or letter case than the paths we look up with:
+ * a Windows report says `SF:src\\file.js` while the editor hands us
+ * `c:\\repo\\src\\file.js`. Normalise both ends so they meet.
+ */
 function normalizeLcovFile(file: string): string {
-  return path.normalize(file).replace(/\\/g, "/").toLowerCase();
+  return file.replace(/\\/g, "/").replace(/\/+/g, "/").toLowerCase();
+}
+
+/** True for POSIX absolute paths and for Windows drive-letter paths alike. */
+function isAbsoluteLcovPath(file: string): boolean {
+  return path.isAbsolute(file) || /^[a-z]:\//i.test(file.replace(/\\/g, "/"));
+}
+
+/** Resolve an SF: record against the workspace root, whatever OS wrote it. */
+function absoluteLcovPath(root: string, file: string): string {
+  const normalizedFile = file.replace(/\\/g, "/");
+  const normalizedRoot = root.replace(/\\/g, "/").replace(/\/+$/, "");
+  if (isAbsoluteLcovPath(normalizedFile)) {
+    return normalizedFile;
+  }
+  // A drive-lettered root ("C:/repo") is not absolute on POSIX, so path.resolve
+  // would silently prepend the current working directory.
+  if (isAbsoluteLcovPath(normalizedRoot)) {
+    return normalizedRoot + "/" + normalizedFile;
+  }
+  return path.resolve(normalizedRoot, normalizedFile);
 }
 
 export function parseLcov(root: string, text: string): LcovIndex {
@@ -20,9 +48,7 @@ export function parseLcov(root: string, text: string): LcovIndex {
     const line = rawLine.trim();
     if (line.startsWith("SF:")) {
       const candidate = line.slice(3);
-      const abs = normalizeLcovFile(
-        path.isAbsolute(candidate) ? candidate : path.resolve(root, candidate),
-      );
+      const abs = normalizeLcovFile(absoluteLcovPath(root, candidate));
       current = index.get(abs) || new Map<number, number>();
       index.set(abs, current);
     } else if (line.startsWith("DA:") && current) {

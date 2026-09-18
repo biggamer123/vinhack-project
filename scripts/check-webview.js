@@ -14,6 +14,7 @@ const { parseLcov, coverageForRange } = require("../out/lcov");
 const { computeScore, tierFor } = require("../out/score");
 const { findRepoRoot, historyForRange } = require("../out/git");
 const { buildStandaloneHtml, removeCdnScripts } = require("../out/standalone");
+const { PROTOCOL_VERSION } = require("../out/protocol");
 
 const root = path.resolve(process.argv[2] || "demo");
 const SKIP = ["node_modules", "dist", "build", "out", ".git", "coverage"];
@@ -72,7 +73,7 @@ function walk(dir, acc = []) {
     if (SKIP.includes(e.name)) continue;
     const full = path.join(dir, e.name);
     if (e.isDirectory()) walk(full, acc);
-    else if (/\.(js|jsx|mjs|cjs|ts|mts|cts|tsx)$/.test(e.name)) acc.push(full);
+    else if (/\.(js|jsx|mjs|cjs|ts|mts|cts|tsx|go)$/.test(e.name)) acc.push(full);
   }
   return acc;
 }
@@ -550,6 +551,99 @@ async function buildPayload() {
     doc.getElementById("schemaBody").textContent.includes("No SQL or NoSQL"), true);
   check("host viewMode:schema focuses the tab",
     doc.getElementById("view-schema").classList.contains("on"), true);
+  click(doc.querySelector('.tab[data-tab="graph"]'));
+
+  // ---------------- orphan shelf must clear the graph ----------------
+  const coords = (sel) =>
+    [...doc.querySelectorAll(sel)].map((g) => {
+      const m = /translate\(([-\d.]+),([-\d.]+)\)/.exec(g.getAttribute("transform") || "");
+      return m ? { x: +m[1], y: +m[2], id: g.__data__ && g.__data__.id } : null;
+    }).filter(Boolean);
+  const placed = coords("g.node");
+  const orphanSet = new Set(
+    payload.nodes.filter((n) => n.fanIn === 0 && n.fanOut === 0).map((n) => n.id),
+  );
+  if (orphanSet.size && placed.length) {
+    const graphNodes = placed.filter((p) => !orphanSet.has(p.id));
+    const shelfNodes = placed.filter((p) => orphanSet.has(p.id));
+    const graphBottom = Math.max(...graphNodes.map((p) => p.y));
+    const shelfTop = Math.min(...shelfNodes.map((p) => p.y));
+    check("orphan shelf sits below the settled graph", shelfTop > graphBottom, true);
+    check("orphan shelf is captioned", !!doc.querySelector("text.orphan-label"), true);
+  }
+
+  // ---------------- stale extension host is called out ----------------
+  const posted5 = [];
+  const dom5 = new JSDOM(html, { runScripts: "outside-only", pretendToBeVisual: true });
+  const w5 = dom5.window;
+  w5.d3 = require("d3");
+  applyDomShims(w5);
+  w5.acquireVsCodeApi = () => ({ postMessage: (m) => posted5.push(m) });
+  global.window = w5;
+  global.document = w5.document;
+  global.SVGElement = w5.SVGElement;
+  w5.eval(script);
+  // a payload with no protocol stamp is what an old host sends
+  w5.dispatchEvent(new w5.MessageEvent("message", { data: payload }));
+  await new Promise((r) => setTimeout(r, 300));
+  check("old host payload raises the stale banner",
+    w5.document.getElementById("staleHost").style.display, "block");
+  // a current payload must not raise it
+  const dom6 = new JSDOM(html, { runScripts: "outside-only", pretendToBeVisual: true });
+  const w6 = dom6.window;
+  w6.d3 = require("d3");
+  applyDomShims(w6);
+  w6.acquireVsCodeApi = () => ({ postMessage: () => {} });
+  global.window = w6;
+  global.document = w6.document;
+  global.SVGElement = w6.SVGElement;
+  w6.eval(script);
+  w6.dispatchEvent(new w6.MessageEvent("message", {
+    data: Object.assign({}, payload, { protocol: PROTOCOL_VERSION }),
+  }));
+  await new Promise((r) => setTimeout(r, 300));
+  check("current host payload leaves it hidden",
+    w6.document.getElementById("staleHost").style.display !== "block", true);
+  global.window = window;
+  global.document = window.document;
+  global.SVGElement = window.SVGElement;
+
+  // ---------------- schema empty states must explain themselves ----------------
+  click(doc.querySelector('.tab[data-tab="schema"]'));
+  window.dispatchEvent(new window.MessageEvent("message", {
+    data: Object.assign({}, payload, {
+      protocol: PROTOCOL_VERSION,
+      schemaHtml: "",
+      schemaInfo: { filesScanned: 1400, schemasFound: 0, usedFallback: false, root: "/repo" },
+    }),
+  }));
+  await new Promise((r) => setTimeout(r, 200));
+  const emptyText = doc.getElementById("schemaBody").textContent;
+  check("empty scan reports how many files were read", emptyText.includes("1400"), true);
+  check("empty scan names what it looked for", emptyText.includes("CREATE TABLE"), true);
+
+  window.dispatchEvent(new window.MessageEvent("message", {
+    data: Object.assign({}, payload, {
+      protocol: PROTOCOL_VERSION,
+      schemaHtml: "",
+      schemaInfo: { filesScanned: 0, schemasFound: 0, usedFallback: true, root: "/repo" },
+    }),
+  }));
+  await new Promise((r) => setTimeout(r, 200));
+  const zeroText = doc.getElementById("schemaBody").textContent;
+  check("a zero-file scan says so, not 'no schemas'", zeroText.includes("No files were scanned"), true);
+  check("filesystem fallback is disclosed", zeroText.includes("filesystem was walked"), true);
+
+  window.dispatchEvent(new window.MessageEvent("message", {
+    data: Object.assign({}, payload, {
+      protocol: PROTOCOL_VERSION,
+      schemaHtml: "<svg><g id='er'></g></svg>",
+      schemaInfo: { filesScanned: 163, schemasFound: 13, usedFallback: false, root: "/repo" },
+    }),
+  }));
+  await new Promise((r) => setTimeout(r, 200));
+  check("a successful scan renders the diagram",
+    doc.getElementById("schemaBody").innerHTML.includes("<svg"), true);
   click(doc.querySelector('.tab[data-tab="graph"]'));
 
   console.log(
