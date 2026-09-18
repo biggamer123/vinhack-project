@@ -26,6 +26,8 @@ export interface RiskInfo {
   /** Authors by commit count, descending. */
   authors: { name: string; email: string; commits: number }[];
   lastChange: number | null;
+  /** Recent commits touching this function: author email + timestamp, newest first. */
+  commits: { email: string; t: number }[];
   /** False until git history for this function has actually been fetched. */
   gitResolved: boolean;
 }
@@ -93,6 +95,7 @@ export class RiskService {
       score: 0,
       authors: [],
       lastChange: null,
+      commits: [],
       gitResolved: false,
     };
     info.score = computeScore(info);

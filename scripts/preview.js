@@ -59,6 +59,10 @@ function walk(dir, acc = []) {
       coverageIsProxy: !hasLcov,
       churnCount: h ? h.churnCount : 0,
       busFactor: h ? h.busFactor : 0,
+      authors: h ? h.authors : [],
+      lastChange: h && h.lastChange ? h.lastChange.getTime() : null,
+      commits: h ? h.commits.slice(0, 50).map((c) => ({ email: c.email, t: c.date.getTime() })) : [],
+      gitResolved: !!h,
     };
     const score = computeScore(risk);
     nodes.push({

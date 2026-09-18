@@ -30,6 +30,13 @@ interface WireNode {
     coverageIsProxy: boolean;
     churnCount: number;
     busFactor: number;
+    /** Authors by commit count, descending. First entry is the lead changer. */
+    authors: { name: string; email: string; commits: number }[];
+    /** Epoch ms of the most recent commit touching this function, if known. */
+    lastChange: number | null;
+    /** Recent commits touching this function, for the GIT tab's charts. */
+    commits: { email: string; t: number }[];
+    gitResolved: boolean;
   };
 }
 
@@ -218,6 +225,10 @@ export function serializeGraph(
         coverageIsProxy: info.coverageIsProxy,
         churnCount: info.churnCount,
         busFactor: info.busFactor,
+        authors: info.authors,
+        lastChange: info.lastChange,
+        commits: info.commits,
+        gitResolved: info.gitResolved,
       },
     });
     for (const calleeId of node.callees) {

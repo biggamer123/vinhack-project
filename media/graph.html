@@ -1,965 +1,1141 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta
-      http-equiv="Content-Security-Policy"
-      content="default-src 'none'; img-src {{cspSource}} data:; style-src {{cspSource}} 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; script-src 'nonce-{{nonce}}' https://cdnjs.cloudflare.com;"
-    />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap"
-      rel="stylesheet"
-    />
-    <title>Blast Radius</title>
-    <style>
-      :root {
-        --dex-red: #dc0a2d;
-        --cream: #f2e8cf;
-        --gb-green: #9bbc0f;
-        --blue: #3b4cca;
-        --yellow: #ffcb05;
-        --ink: #17140f;
-        --grass: #78c850;
-        --electric: #f8d030;
-        --fire: #ee8130;
-        --dark: #7c538c;
-      }
-      * {
-        box-sizing: border-box;
-      }
-      html,
-      body {
-        height: 100%;
-        margin: 0;
-      }
-      body {
-        background: var(--dex-red);
-        color: var(--ink);
-        font-family: "Press Start 2P", ui-monospace, monospace;
-        font-size: 10px;
-        line-height: 1.7;
-        overflow: hidden;
-      }
-      .pixel {
-        box-shadow: 4px 4px 0 #000;
-        border: 3px solid #000;
-        border-radius: 0;
-      }
+<head>
+<meta charset="utf-8" />
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src {{cspSource}} data:; style-src {{cspSource}} 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; script-src 'nonce-{{nonce}}' https://cdnjs.cloudflare.com;" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet" />
+<title>Blast Radius</title>
+<style>
+  :root {
+    --dex-red: #DC0A2D;
+    --cream: #F2E8CF;
+    --gb-green: #9BBC0F;
+    --blue: #3B4CCA;
+    --yellow: #FFCB05;
+    --ink: #17140f;
+    --grass: #78C850;
+    --electric: #F8D030;
+    --fire: #EE8130;
+    --dark: #7C538C;
+    --muted: #6b6355;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    background: var(--dex-red);
+    color: var(--ink);
+    font-family: 'Press Start 2P', ui-monospace, monospace;
+    font-size: 10px;
+    line-height: 1.7;
+    overflow: hidden;
+  }
 
-      /* ---- header ---- */
-      header {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        padding: 10px 14px;
-        background: var(--dex-red);
-        border-bottom: 4px solid #000;
-      }
-      .lens {
-        width: 30px;
-        height: 30px;
-        border-radius: 50%;
-        background: var(--blue);
-        border: 3px solid #000;
-        box-shadow:
-          inset -3px -3px 0 rgba(0, 0, 0, 0.35),
-          3px 3px 0 #000;
-        flex: none;
-      }
-      .lamp {
-        width: 12px;
-        height: 12px;
-        border-radius: 50%;
-        border: 2px solid #000;
-        flex: none;
-      }
-      h1 {
-        font-size: 13px;
-        margin: 0;
-        color: #fff;
-        text-shadow: 2px 2px 0 #000;
-        letter-spacing: 1px;
-      }
-      .sub {
-        font-size: 8px;
-        color: #ffd9df;
-        margin-top: 4px;
-      }
-      header .spacer {
-        flex: 1;
-      }
+  /* ---- header + tab strip ---- */
+  header { background: var(--dex-red); border-bottom: 4px solid #000; }
+  .brand { display: flex; align-items: center; gap: 10px; padding: 9px 14px 0; }
+  .lens {
+    width: 26px; height: 26px; border-radius: 50%;
+    background: var(--blue); border: 3px solid #000;
+    box-shadow: inset -3px -3px 0 rgba(0,0,0,.35), 3px 3px 0 #000; flex: none;
+  }
+  .lamp { width: 10px; height: 10px; border-radius: 50%; border: 2px solid #000; flex: none; }
+  h1 { font-size: 12px; margin: 0; color: #fff; text-shadow: 2px 2px 0 #000; letter-spacing: 1px; }
+  .sub { font-size: 8px; color: #ffd9df; margin-top: 3px; }
+  .brand .spacer { flex: 1; }
 
-      /* ---- toolbar ---- */
-      .toolbar {
-        display: flex;
-        flex-wrap: wrap;
-        align-items: center;
-        gap: 6px;
-        padding: 8px 12px;
-        background: var(--yellow);
-        border-bottom: 4px solid #000;
-      }
-      .btn {
-        font: inherit;
-        font-size: 8px;
-        cursor: pointer;
-        background: var(--cream);
-        color: var(--ink);
-        border: 2px solid #000;
-        border-radius: 0;
-        padding: 6px 8px;
-        box-shadow: 3px 3px 0 #000;
-      }
-      .btn:active {
-        transform: translate(2px, 2px);
-        box-shadow: 1px 1px 0 #000;
-      }
-      .btn.on {
-        background: var(--blue);
-        color: #fff;
-      }
-      input.search {
-        font: inherit;
-        font-size: 8px;
-        padding: 6px 8px;
-        width: 170px;
-        background: var(--cream);
-        border: 2px solid #000;
-        box-shadow: 3px 3px 0 #000;
-        color: var(--ink);
-      }
-      input.search::placeholder {
-        color: #8a8271;
-      }
-      .tierchip {
-        font-size: 8px;
-        padding: 5px 7px;
-        border: 2px solid #000;
-        box-shadow: 3px 3px 0 #000;
-        cursor: pointer;
-        color: #17140f;
-        user-select: none;
-      }
-      .tierchip.off {
-        opacity: 0.35;
-      }
+  .tabs { display: flex; gap: 4px; padding: 8px 12px 0; }
+  .tab {
+    font: inherit; font-size: 9px; cursor: pointer; color: var(--ink);
+    background: #c9bfa6; border: 3px solid #000; border-bottom: none;
+    padding: 8px 14px 7px; position: relative; top: 3px;
+    box-shadow: inset 0 -3px 0 rgba(0,0,0,.18);
+  }
+  .tab.on { background: var(--cream); top: 0; padding-bottom: 10px; box-shadow: none; }
+  .tab .dot { display: inline-block; width: 7px; height: 7px; border: 2px solid #000; margin-right: 6px; }
 
-      /* ---- layout ---- */
-      .stage {
-        display: flex;
-        height: calc(100% - 96px);
-      }
-      .canvas-wrap {
-        position: relative;
-        flex: 1;
-        background: var(--cream);
-        border-right: 4px solid #000;
-        overflow: hidden;
-      }
-      .schema-overlay {
-        position: absolute;
-        inset: 0;
-        overflow: auto;
-        background: linear-gradient(180deg, #0f172a 0%, #1f2937 100%);
-        padding: 16px;
-        display: none;
-        z-index: 10;
-      }
-      .schema-overlay.visible {
-        display: block;
-      }
-      svg {
-        width: 100%;
-        height: 100%;
-        display: block;
-        cursor: grab;
-      }
-      svg:active {
-        cursor: grabbing;
-      }
-      .scanlines {
-        position: absolute;
-        inset: 0;
-        pointer-events: none;
-        z-index: 5;
-        background: repeating-linear-gradient(
-          rgba(0, 0, 0, 0.05) 0px,
-          transparent 1px,
-          transparent 2px
-        );
-      }
-      .hud {
-        position: absolute;
-        left: 10px;
-        bottom: 10px;
-        z-index: 6;
-        background: var(--gb-green);
-        padding: 8px 10px;
-        font-size: 8px;
-        border: 3px solid #000;
-        box-shadow: 4px 4px 0 #000;
-        max-width: 62%;
-      }
+  /* ---- toolbars ---- */
+  .toolbar {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
+    padding: 8px 12px; background: var(--yellow); border-bottom: 4px solid #000;
+  }
+  .btn {
+    font: inherit; font-size: 8px; cursor: pointer;
+    background: var(--cream); color: var(--ink);
+    border: 2px solid #000; border-radius: 0; padding: 6px 8px; box-shadow: 3px 3px 0 #000;
+  }
+  .btn:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 #000; }
+  .btn.on { background: var(--blue); color: #fff; }
+  input.search {
+    font: inherit; font-size: 8px; padding: 6px 8px; width: 170px;
+    background: var(--cream); border: 2px solid #000; box-shadow: 3px 3px 0 #000; color: var(--ink);
+  }
+  input.search::placeholder { color: #8a8271; }
+  .tierchip {
+    font-size: 8px; padding: 5px 7px; border: 2px solid #000; box-shadow: 3px 3px 0 #000;
+    cursor: pointer; color: var(--ink); user-select: none;
+  }
+  .tierchip.off { opacity: .35; }
 
-      /* ---- dex entry side panel ---- */
-      aside {
-        width: 330px;
-        flex: none;
-        background: var(--dex-red);
-        padding: 12px;
-        overflow-y: auto;
-      }
-      .card {
-        background: var(--cream);
-        border: 3px solid #000;
-        box-shadow: 4px 4px 0 #000;
-        padding: 12px;
-      }
-      .card + .card {
-        margin-top: 12px;
-      }
-      .dexno {
-        font-size: 8px;
-        color: #6b6355;
-      }
-      .mon {
-        font-size: 13px;
-        margin: 6px 0 8px;
-        word-break: break-word;
-        line-height: 1.5;
-      }
-      .badge {
-        display: inline-block;
-        font-size: 8px;
-        padding: 4px 8px;
-        border: 2px solid #000;
-        box-shadow: 2px 2px 0 #000;
-        color: #17140f;
-      }
-      .path {
-        font-size: 8px;
-        color: #6b6355;
-        word-break: break-all;
-        margin: 8px 0;
-        line-height: 1.6;
-      }
-      .statrow {
-        display: grid;
-        grid-template-columns: 92px 1fr 40px;
-        gap: 6px;
-        align-items: center;
-        margin: 7px 0;
-        font-size: 8px;
-      }
-      .bar {
-        height: 12px;
-        background: #d9cfb4;
-        border: 2px solid #000;
-        position: relative;
-      }
-      .bar > i {
-        display: block;
-        height: 100%;
-        background: var(--blue);
-      }
-      .val {
-        text-align: right;
-        font-size: 8px;
-      }
-      .formula {
-        font-size: 8px;
-        line-height: 1.8;
-        color: #3a3427;
-        border-top: 2px dashed #000;
-        padding-top: 8px;
-        margin-top: 10px;
-        word-break: break-word;
-      }
-      .prose {
-        font-size: 8px;
-        line-height: 1.9;
-      }
-      .empty {
-        color: #6b6355;
-        font-size: 8px;
-        line-height: 1.9;
-      }
-      .wide {
-        width: 100%;
-        margin-top: 10px;
-      }
-      .flag {
-        background: var(--yellow);
-        border: 2px solid #000;
-        padding: 6px;
-        font-size: 8px;
-        margin-top: 8px;
-        line-height: 1.7;
-      }
+  /* ---- view plumbing ---- */
+  .views { height: calc(100% - 130px); }
+  .view { display: none; height: 100%; }
+  .view.on { display: flex; }
+  .canvas-wrap { position: relative; flex: 1; background: var(--cream); border-right: 4px solid #000; overflow: hidden; }
+  svg#svg { width: 100%; height: 100%; display: block; cursor: grab; }
+  svg#svg:active { cursor: grabbing; }
+  .scanlines {
+    position: absolute; inset: 0; pointer-events: none; z-index: 5;
+    background: repeating-linear-gradient(rgba(0,0,0,0.05) 0px, transparent 1px, transparent 2px);
+  }
+  .hud {
+    position: absolute; left: 10px; bottom: 10px; z-index: 6;
+    background: var(--gb-green); padding: 8px 10px; font-size: 8px;
+    border: 3px solid #000; box-shadow: 4px 4px 0 #000; max-width: 62%;
+  }
 
-      /* ---- graph marks ---- */
-      .link {
-        stroke: #6b6355;
-        stroke-opacity: 0.5;
-        stroke-width: 1.2;
-      }
-      .link.hot {
-        stroke: var(--dex-red);
-        stroke-opacity: 0.95;
-        stroke-width: 2.2;
-      }
-      .node circle {
-        stroke: #000;
-        stroke-width: 2;
-        cursor: pointer;
-      }
-      .node.sel circle {
-        stroke-width: 4;
-      }
-      .node text {
-        font-size: 6.5px;
-        pointer-events: none;
-        paint-order: stroke;
-        stroke: var(--cream);
-        stroke-width: 3px;
-        stroke-linejoin: round;
-      }
-      .dim {
-        opacity: 0.12;
-      }
-      aside::-webkit-scrollbar {
-        width: 10px;
-      }
-      aside::-webkit-scrollbar-thumb {
-        background: var(--yellow);
-        border: 2px solid #000;
-      }
-    </style>
-  </head>
-  <body>
-    <header>
+  /* ---- right rail ---- */
+  aside { width: 330px; flex: none; background: var(--dex-red); padding: 10px; overflow-y: auto; }
+  .card { background: var(--cream); border: 3px solid #000; box-shadow: 4px 4px 0 #000; padding: 10px; }
+  .card + .card { margin-top: 10px; }
+  .cardhead { font-size: 8px; color: var(--muted); margin-bottom: 6px; }
+  .list { max-height: 230px; overflow-y: auto; border: 2px solid #000; background: #fffdf6; }
+  .row {
+    display: flex; align-items: center; gap: 6px; padding: 5px 6px;
+    border-bottom: 1px solid #ddd2b4; cursor: pointer; font-size: 8px;
+  }
+  .row:hover { background: var(--yellow); }
+  .row.on { background: var(--blue); color: #fff; }
+  .row .swatch { width: 9px; height: 9px; border: 2px solid #000; flex: none; }
+  .row .nm { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .row .sc { color: var(--muted); }
+  .row.on .sc { color: #ffe9ee; }
+
+  .dexno { font-size: 8px; color: var(--muted); }
+  .mon { font-size: 13px; margin: 6px 0 8px; word-break: break-word; line-height: 1.5; }
+  .badge {
+    display: inline-block; font-size: 8px; padding: 4px 8px;
+    border: 2px solid #000; box-shadow: 2px 2px 0 #000; color: var(--ink);
+  }
+  .path { font-size: 8px; color: var(--muted); word-break: break-all; margin: 8px 0; line-height: 1.6; }
+  .statrow { display: grid; grid-template-columns: 92px 1fr 44px; gap: 6px; align-items: center; margin: 7px 0; font-size: 8px; }
+  .bar { height: 12px; background: #d9cfb4; border: 2px solid #000; position: relative; }
+  .bar > i { display: block; height: 100%; background: var(--blue); }
+  .val { text-align: right; font-size: 8px; }
+  .formula { font-size: 8px; line-height: 1.8; color: #3a3427; border-top: 2px dashed #000; padding-top: 8px; margin-top: 10px; word-break: break-word; }
+  .prose { font-size: 8px; line-height: 1.9; }
+  .empty { color: var(--muted); font-size: 8px; line-height: 1.9; }
+  .wide { width: 100%; margin-top: 8px; }
+  .flag { background: var(--yellow); border: 2px solid #000; padding: 6px; font-size: 8px; margin-top: 8px; line-height: 1.7; }
+
+  /* ---- index + git tables ---- */
+  .sheet { flex: 1; background: var(--cream); overflow: auto; padding: 12px; }
+  table { border-collapse: collapse; width: 100%; font-size: 8px; }
+  th, td { text-align: left; padding: 7px 8px; border-bottom: 2px solid #e0d6bb; white-space: nowrap; }
+  th {
+    position: sticky; top: 0; background: var(--dex-red); color: #fff;
+    border-bottom: 3px solid #000; cursor: pointer; z-index: 2;
+  }
+  th.sorted::after { content: ' \25BC'; }
+  tbody tr { cursor: pointer; }
+  tbody tr:hover { background: var(--yellow); }
+  tbody tr.on { background: var(--blue); color: #fff; }
+  td.name { font-size: 8px; }
+  td.file { color: var(--muted); max-width: 260px; overflow: hidden; text-overflow: ellipsis; }
+  tbody tr.on td.file { color: #ffe9ee; }
+  .pill { display: inline-block; padding: 3px 6px; border: 2px solid #000; font-size: 7px; }
+
+  /* author contribution bar (GIT tab) */
+  .contrib { display: flex; height: 13px; border: 2px solid #000; min-width: 150px; background: #d9cfb4; }
+  .contrib > span { display: block; height: 100%; }
+  .lead { font-size: 8px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 10px; font-size: 8px; align-items: center; }
+  .legend .key { display: flex; align-items: center; gap: 5px; }
+  .legend .key i { width: 11px; height: 11px; border: 2px solid #000; display: block; }
+
+  /* ---- lineage modal, styled as a little browser window ---- */
+  .modal-back {
+    position: fixed; inset: 0; background: rgba(0,0,0,.55); z-index: 50;
+    display: none; align-items: center; justify-content: center; padding: 24px;
+  }
+  .modal-back.on { display: flex; }
+  .window {
+    background: var(--cream); border: 4px solid #000; box-shadow: 10px 10px 0 rgba(0,0,0,.6);
+    width: min(1000px, 96vw); max-height: 92vh; display: flex; flex-direction: column;
+  }
+  .titlebar {
+    display: flex; align-items: center; gap: 8px; padding: 8px 10px;
+    background: var(--dex-red); border-bottom: 4px solid #000;
+  }
+  .light { width: 13px; height: 13px; border-radius: 50%; border: 2px solid #000; flex: none; }
+  .wintab {
+    background: var(--cream); border: 2px solid #000; padding: 5px 10px; font-size: 8px;
+    display: flex; align-items: center; gap: 8px; max-width: 340px;
+  }
+  .wintab .x { cursor: pointer; font-size: 9px; }
+  .winbtns { margin-left: auto; display: flex; gap: 6px; }
+  .winbtn {
+    font: inherit; font-size: 9px; width: 26px; height: 22px; cursor: pointer; line-height: 1;
+    background: var(--cream); border: 2px solid #000; box-shadow: 2px 2px 0 #000; color: var(--ink);
+  }
+  .winbody { padding: 16px; overflow: auto; }
+
+  /* straight-line lineage */
+  .chain { display: flex; flex-direction: column; align-items: center; gap: 0; }
+  .lvl { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; max-width: 100%; }
+  .lvlnote { font-size: 7px; color: var(--muted); margin: 2px 0 4px; text-align: center; }
+  .link-v { width: 3px; height: 20px; background: #000; }
+  .arrow-v { width: 0; height: 0; border-left: 6px solid transparent; border-right: 6px solid transparent; border-top: 8px solid #000; }
+  .chip {
+    background: var(--cream); border: 3px solid #000; box-shadow: 3px 3px 0 #000;
+    padding: 7px 9px; font-size: 8px; cursor: pointer; max-width: 220px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .chip.self { border-width: 4px; box-shadow: 5px 5px 0 #000; font-size: 10px; padding: 11px 14px; }
+  .chip .tierdot { display: inline-block; width: 8px; height: 8px; border: 2px solid #000; margin-right: 6px; }
+  aside::-webkit-scrollbar, .list::-webkit-scrollbar, .sheet::-webkit-scrollbar, .winbody::-webkit-scrollbar { width: 10px; height: 10px; }
+  aside::-webkit-scrollbar-thumb, .list::-webkit-scrollbar-thumb, .sheet::-webkit-scrollbar-thumb, .winbody::-webkit-scrollbar-thumb { background: var(--yellow); border: 2px solid #000; }
+
+
+  /* ---- hover tooltip ---- */
+  .tip {
+    position: fixed; z-index: 40; display: none; width: 268px;
+    background: var(--cream); border: 3px solid #000; box-shadow: 5px 5px 0 #000;
+    padding: 9px; font-size: 8px; line-height: 1.7;
+  }
+  .tip.on { display: block; }
+  .tip h4 { margin: 0 0 6px; font-size: 10px; word-break: break-word; line-height: 1.5; }
+  .tip .tiprow { display: grid; grid-template-columns: 66px 1fr 40px; gap: 5px; align-items: center; margin: 4px 0; }
+  .tip .bar { height: 9px; }
+  .tip .acts { display: flex; gap: 5px; margin-top: 8px; }
+  .tip .acts .btn { flex: 1; text-align: center; padding: 5px 4px; box-shadow: 2px 2px 0 #000; }
+  .spark { display: flex; align-items: flex-end; gap: 2px; height: 26px; }
+  .spark > i { display: block; width: 9px; background: var(--blue); border: 1px solid #000; min-height: 2px; }
+  .authorcards { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 14px; }
+  .authorcard { background: var(--cream); border: 3px solid #000; box-shadow: 4px 4px 0 #000; padding: 10px; width: 250px; }
+  .authorcard .top { display: flex; align-items: center; gap: 8px; }
+  .authorcard .av { width: 26px; height: 26px; border: 2px solid #000; flex: none; }
+  .authorcard .rank { margin-left: auto; font-size: 7px; border: 2px solid #000; padding: 2px 5px; }
+  .authorcard .who { font-size: 9px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .authorcard .meta { font-size: 7px; color: var(--muted); margin: 6px 0 8px; }
+  .focusbar { background: var(--yellow); border: 3px solid #000; box-shadow: 4px 4px 0 #000; padding: 9px; margin-bottom: 12px; font-size: 8px; }
+
+  /* ---- graph marks ---- */
+  .link { stroke: #6b6355; stroke-opacity: .45; stroke-width: 1.2; }
+  .link.hot { stroke: var(--dex-red); stroke-opacity: .95; stroke-width: 2.4; }
+  .node circle { stroke: #000; stroke-width: 2; cursor: pointer; }
+  .node.sel circle { stroke-width: 4; }
+  .node text { font-size: 6.5px; pointer-events: none; paint-order: stroke; stroke: var(--cream); stroke-width: 3px; stroke-linejoin: round; }
+  .dim { opacity: .12; }
+  .orphan-label { font-size: 8px; fill: var(--muted); }
+</style>
+</head>
+<body>
+  <header>
+    <div class="brand">
       <div class="lens"></div>
-      <div class="lamp" style="background: var(--dex-red)"></div>
-      <div class="lamp" style="background: var(--yellow)"></div>
-      <div class="lamp" style="background: var(--grass)"></div>
-      <div style="margin-left: 6px">
+      <div class="lamp" style="background:var(--dex-red)"></div>
+      <div class="lamp" style="background:var(--yellow)"></div>
+      <div class="lamp" style="background:var(--grass)"></div>
+      <div style="margin-left:6px">
         <h1>BLAST RADIUS</h1>
-        <div class="sub" id="subtitle">booting dex…</div>
+        <div class="sub" id="subtitle">booting dex...</div>
       </div>
       <div class="spacer"></div>
-    </header>
-
-    <div class="toolbar">
-      <input class="search" id="search" placeholder="FIND FUNCTION" />
-      <span class="tierchip" data-tier="low" style="background: var(--grass)"
-        >LOW</span
-      >
-      <span
-        class="tierchip"
-        data-tier="medium"
-        style="background: var(--electric)"
-        >MED</span
-      >
-      <span class="tierchip" data-tier="high" style="background: var(--fire)"
-        >HIGH</span
-      >
-      <span
-        class="tierchip"
-        data-tier="critical"
-        style="background: var(--dark); color: #fff"
-        >CRIT</span
-      >
-      <button class="btn" id="isolate">HIDE ORPHANS</button>
-      <button class="btn" id="freeze">FREEZE</button>
-      <button class="btn" id="reset">RESET VIEW</button>
-      <button
-        class="btn"
-        id="schema"
-        style="background: var(--yellow); color: #17140f"
-      >
-        DB SCHEMA
-      </button>
-      <button
-        class="btn"
-        id="browser"
-        style="background: var(--blue); color: #fff"
-      >
-        OPEN IN BROWSER
-      </button>
     </div>
+    <div class="tabs">
+      <button class="tab on" data-tab="schema"><i class="dot" style="background:var(--grass)"></i>SCHEMA</button>
+      <button class="tab" data-tab="index"><i class="dot" style="background:var(--electric)"></i>INDEX</button>
+      <button class="tab" data-tab="git"><i class="dot" style="background:var(--blue)"></i>GIT</button>
+    </div>
+  </header>
 
-    <div class="stage">
+  <div class="toolbar" id="bar-schema">
+    <input class="search" id="search" placeholder="FIND FUNCTION" />
+    <span class="tierchip" data-tier="low" style="background:var(--grass)">LOW</span>
+    <span class="tierchip" data-tier="medium" style="background:var(--electric)">MED</span>
+    <span class="tierchip" data-tier="high" style="background:var(--fire)">HIGH</span>
+    <span class="tierchip" data-tier="critical" style="background:var(--dark);color:#fff">CRIT</span>
+    <button class="btn" id="isolate">HIDE ORPHANS</button>
+    <button class="btn" id="freeze">FREEZE</button>
+    <button class="btn" id="reset">FIT VIEW</button>
+    <button class="btn" id="browser" style="background:var(--blue);color:#fff">OPEN IN BROWSER</button>
+  </div>
+
+  <div class="toolbar" id="bar-index" style="display:none">
+    <input class="search" id="indexSearch" placeholder="FIND FUNCTION" />
+    <span class="btn" style="cursor:default">CLICK A ROW FOR ITS LINEAGE</span>
+  </div>
+
+  <div class="toolbar" id="bar-git" style="display:none">
+    <input class="search" id="gitSearch" placeholder="FIND FUNCTION OR AUTHOR" />
+    <span class="btn" style="cursor:default">WHO CHANGED WHAT, AND HOW OFTEN</span>
+  </div>
+
+  <div class="views">
+    <div class="view on" id="view-schema">
       <div class="canvas-wrap">
-        <div id="schemaOverlay" class="schema-overlay"></div>
         <svg id="svg"></svg>
         <div class="scanlines"></div>
-        <div class="hud" id="hud">LOADING…</div>
+        <div class="hud" id="hud">LOADING...</div>
       </div>
       <aside>
+        <div class="card">
+          <div class="cardhead">FUNCTION INDEX</div>
+          <input class="search" id="railSearch" placeholder="SEARCH" style="width:100%" />
+          <div class="list" id="railList" style="margin-top:8px"></div>
+        </div>
         <div class="card" id="entry">
           <div class="dexno">DEX ENTRY</div>
           <div class="mon">NO SELECTION</div>
-          <div class="empty">
-            Click any node to read its entry.<br />Circle size = number of
-            callers.<br />Colour = risk tier.
-          </div>
+          <div class="empty">Click any node to read its entry.<br/>Circle size = number of callers.<br/>Colour = risk tier.</div>
         </div>
+        <div class="card" id="relations" style="display:none"></div>
       </aside>
     </div>
 
-    <script
-      nonce="{{nonce}}"
-      src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"
-    ></script>
-    <script nonce="{{nonce}}">
-      window.addEventListener("error", function (e) {
-        var hud = document.getElementById("hud");
-        var sub = document.getElementById("subtitle");
-        if (sub) {
-          sub.textContent = "PAGE ERROR";
-        }
-        if (hud) {
-          hud.style.background = "#EE8130";
-          hud.innerHTML =
-            "SCRIPT ERROR<br/>" +
-            String(e.message || e.error || "")
-              .replace(/&/g, "&amp;")
-              .replace(/</g, "&lt;");
-        }
+    <div class="view" id="view-index">
+      <div class="sheet">
+        <table id="indexTable">
+          <thead><tr>
+            <th data-sort="score" class="sorted">RISK</th>
+            <th data-sort="name">FUNCTION</th>
+            <th data-sort="fanIn">CALLERS</th>
+            <th data-sort="fanOut">CALLS</th>
+            <th data-sort="coverage">COVERAGE</th>
+            <th data-sort="churn">CHURN 90D</th>
+            <th data-sort="bus">BUS</th>
+            <th data-sort="file">FILE</th>
+          </tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="view" id="view-git">
+      <div class="sheet">
+        <div class="legend" id="gitLegend"></div>
+        <table id="gitTable">
+          <thead><tr>
+            <th data-gsort="churn" class="sorted">90D</th>
+            <th data-gsort="name">FUNCTION</th>
+            <th data-gsort="contrib">WHO CHANGED IT</th>
+            <th data-gsort="lead">LEAD CHANGER</th>
+            <th data-gsort="bus">AUTHORS</th>
+            <th data-gsort="last">LAST CHANGE</th>
+          </tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="tip" id="tip"></div>
+
+  <div class="modal-back" id="lineage">
+    <div class="window">
+      <div class="titlebar">
+        <div class="light" style="background:#FF5F57"></div>
+        <div class="light" style="background:var(--yellow)"></div>
+        <div class="light" style="background:var(--grass)"></div>
+        <div class="wintab"><span id="lineageTab">lineage</span><span class="x" id="lineageTabX">&#10005;</span></div>
+        <div class="winbtns">
+          <button class="winbtn" id="lineageBack" title="Previous function">&#8592;</button>
+          <button class="winbtn" id="lineageGraph" title="Show in graph">&#9673;</button>
+          <button class="winbtn" id="lineageClose" title="Close">&#10005;</button>
+        </div>
+      </div>
+      <div class="winbody" id="lineageBody"></div>
+    </div>
+  </div>
+
+<script nonce="{{nonce}}" src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<script nonce="{{nonce}}">
+window.addEventListener('error', function (e) {
+  var hud = document.getElementById('hud');
+  var sub = document.getElementById('subtitle');
+  if (sub) { sub.textContent = 'PAGE ERROR'; }
+  if (hud) {
+    hud.style.background = '#EE8130';
+    hud.innerHTML = 'SCRIPT ERROR<br/>' + String(e.message || e.error || '')
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;');
+  }
+});
+
+(function () {
+  // Outside a webview (a file:// snapshot) there is no host API. Falling back
+  // keeps the page alive instead of throwing on line one and rendering nothing.
+  var vscode = (typeof acquireVsCodeApi === 'function')
+    ? acquireVsCodeApi()
+    : { postMessage: function () {} };
+
+  var TIER_COLOR = { low: '#78C850', medium: '#F8D030', high: '#EE8130', critical: '#7C538C' };
+  var TIER_NAME = { low: 'GRASS / LOW', medium: 'ELECTRIC / MED', high: 'FIRE / HIGH', critical: 'DARK / CRITICAL' };
+  var AUTHOR_COLORS = ['#3B4CCA', '#EE8130', '#78C850', '#7C538C', '#F8D030', '#DC0A2D', '#5b8fb9', '#b06c49'];
+
+  var nodes = [], links = [], byId = new Map();
+  var selected = null, frozen = false, hideOrphans = false, standalone = false;
+  var activeTiers = new Set(['low', 'medium', 'high', 'critical']);
+  var query = '', tab = 'schema', lineageStack = [], authorColor = new Map();
+
+  var $ = function (id) { return document.getElementById(id); };
+  var esc = function (s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); };
+
+  /* ------------------------------------------------------------------ tabs */
+  function showTab(name) {
+    tab = name;
+    ['schema', 'index', 'git'].forEach(function (t) {
+      $('view-' + t).classList.toggle('on', t === name);
+      $('bar-' + t).style.display = t === name ? 'flex' : 'none';
+      document.querySelector('.tab[data-tab="' + t + '"]').classList.toggle('on', t === name);
+    });
+    hideTip();
+    if (name === 'index') { renderIndex(); }
+    if (name === 'git') { renderGit(); }
+  }
+  document.querySelectorAll('.tab').forEach(function (b) {
+    b.addEventListener('click', function () { showTab(b.dataset.tab); });
+  });
+
+  /* ----------------------------------------------------------------- graph */
+  var svg = d3.select('#svg');
+  var root = svg.append('g');
+  svg.append('defs').append('marker')
+      .attr('id', 'arrow').attr('viewBox', '0 -5 10 10').attr('refX', 17)
+      .attr('markerWidth', 5).attr('markerHeight', 5).attr('orient', 'auto')
+    .append('path').attr('d', 'M0,-4L9,0L0,4').attr('fill', '#6b6355');
+  var linkG = root.append('g');
+  var orphanG = root.append('g');
+  var nodeG = root.append('g');
+  var zoom = d3.zoom().scaleExtent([0.05, 6]).on('zoom', function (e) { root.attr('transform', e.transform); });
+  svg.call(zoom);
+
+  var radius = function (n) { return 6 + Math.sqrt(n.fanIn) * 3.4; };
+  var sim = null;
+
+  function viewport() {
+    var w = document.querySelector('#view-schema .canvas-wrap');
+    return { w: (w && w.clientWidth) || 900, h: (w && w.clientHeight) || 600 };
+  }
+
+  function render() {
+    var vp = viewport();
+
+    // Disconnected functions used to be flung to the edges by the charge force,
+    // leaving a tight hairball and a scatter of far-away specks. Park them in a
+    // tidy grid below the graph instead, and keep them out of the simulation.
+    var connected = nodes.filter(function (n) { return n.fanIn > 0 || n.fanOut > 0; });
+    var orphans = nodes.filter(function (n) { return n.fanIn === 0 && n.fanOut === 0; });
+    var cols = Math.max(6, Math.ceil(Math.sqrt(orphans.length * 2.2)));
+    var gapX = 108, gapY = 34;
+    var topY = vp.h * 0.92;
+    orphans.forEach(function (n, i) {
+      n.fx = n.x = 40 + (i % cols) * gapX;
+      n.fy = n.y = topY + Math.floor(i / cols) * gapY;
+    });
+
+    orphanG.selectAll('text').data(orphans.length ? [orphans.length] : []).join('text')
+      .attr('class', 'orphan-label')
+      .attr('x', 40).attr('y', topY - 18)
+      .text(function (d) { return d + ' UNCALLED / NO CALLS OUT'; });
+
+    var link = linkG.selectAll('line').data(links, function (d) { return d.source.id + '>' + d.target.id; });
+    link.exit().remove();
+    link.enter().append('line').attr('class', 'link').attr('marker-end', 'url(#arrow)');
+
+    var node = nodeG.selectAll('g.node').data(nodes, function (d) { return d.id; });
+    node.exit().remove();
+    var enter = node.enter().append('g').attr('class', 'node');
+    enter.append('circle')
+      .attr('r', radius)
+      .attr('fill', function (d) { return TIER_COLOR[d.tier]; })
+      .on('click', function (e, d) { e.stopPropagation(); select(d, true); })
+      .on('mouseenter', function (e, d) { showTip(e, d); })
+      .on('mousemove', function (e) { moveTip(e); })
+      .on('mouseleave', function () { scheduleHideTip(); });
+    enter.append('text')
+      .attr('dy', function (d) { return -radius(d) - 4; })
+      .attr('text-anchor', 'middle')
+      .text(function (d) { return d.name; });
+    enter.call(d3.drag()
+      .on('start', function (e, d) { if (!e.active && sim) sim.alphaTarget(0.25).restart(); d.fx = d.x; d.fy = d.y; })
+      .on('drag', function (e, d) { d.fx = e.x; d.fy = e.y; })
+      .on('end', function (e, d) {
+        if (!e.active && sim) sim.alphaTarget(0);
+        if (!frozen && (d.fanIn > 0 || d.fanOut > 0)) { d.fx = null; d.fy = null; }
+      }));
+
+    if (sim) { sim.stop(); }
+    sim = d3.forceSimulation(connected)
+      .force('link', d3.forceLink(links).id(function (d) { return d.id; }).distance(64).strength(0.4))
+      // distanceMax stops repulsion acting across the whole canvas, which is what
+      // used to push loosely-attached nodes into the far corners.
+      .force('charge', d3.forceManyBody().strength(-190).distanceMax(340))
+      .force('collide', d3.forceCollide().radius(function (d) { return radius(d) + 11; }))
+      .force('x', d3.forceX(vp.w / 2).strength(0.055))
+      .force('y', d3.forceY(vp.h * 0.42).strength(0.055))
+      .on('tick', tick);
+
+    // Settle the layout synchronously instead of animating into place. The graph
+    // appears already arranged, the framing below is computed from final
+    // positions, and none of it depends on how many animation frames the host
+    // gets around to running. Dragging a node restarts the live simulation.
+    sim.stop();
+    for (var i = 0; i < 380; i++) { sim.tick(); }
+    connected.forEach(function (n) {
+      if (!isFinite(n.x) || !isFinite(n.y)) { n.x = vp.w / 2; n.y = vp.h / 2; }
+    });
+
+    tick();
+    applyFilter();
+    fitView(0);
+  }
+
+  function tick() {
+    linkG.selectAll('line')
+      .attr('x1', function (d) { return d.source.x; }).attr('y1', function (d) { return d.source.y; })
+      .attr('x2', function (d) { return d.target.x; }).attr('y2', function (d) { return d.target.y; });
+    nodeG.selectAll('g.node').attr('transform', function (d) {
+      return 'translate(' + (d.x || 0) + ',' + (d.y || 0) + ')';
+    });
+  }
+
+  /** Frame everything that is currently visible. */
+  function fitView(duration) {
+    var shown = nodes.filter(function (d) {
+      return visible(d) && isFinite(d.x) && isFinite(d.y);
+    });
+    if (!shown.length) { return; }
+    var xs = shown.map(function (d) { return d.x; });
+    var ys = shown.map(function (d) { return d.y; });
+    var pad = 60;
+    var x0 = Math.min.apply(null, xs) - pad, x1 = Math.max.apply(null, xs) + pad;
+    var y0 = Math.min.apply(null, ys) - pad, y1 = Math.max.apply(null, ys) + pad;
+    var vp = viewport();
+    var k = Math.min(vp.w / Math.max(1, x1 - x0), vp.h / Math.max(1, y1 - y0), 1.4);
+    var t = d3.zoomIdentity
+      .translate(vp.w / 2, vp.h / 2)
+      .scale(k)
+      .translate(-(x0 + x1) / 2, -(y0 + y1) / 2);
+    var ms = duration === undefined ? 450 : duration;
+    if (ms > 0) {
+      svg.transition().duration(ms).call(zoom.transform, t);
+    } else {
+      svg.call(zoom.transform, t);
+    }
+  }
+
+  function centerOn(d) {
+    if (d.x === undefined) { return; }
+    var vp = viewport();
+    var t = d3.zoomIdentity.translate(vp.w / 2, vp.h / 2).scale(1.5).translate(-d.x, -d.y);
+    svg.transition().duration(500).call(zoom.transform, t);
+  }
+
+  function visible(d) {
+    if (!activeTiers.has(d.tier)) { return false; }
+    if (hideOrphans && d.fanIn === 0 && d.fanOut === 0) { return false; }
+    if (query && d.name.toLowerCase().indexOf(query) === -1 && d.file.toLowerCase().indexOf(query) === -1) { return false; }
+    return true;
+  }
+
+  function applyFilter() {
+    var shown = new Set(nodes.filter(visible).map(function (d) { return d.id; }));
+    nodeG.selectAll('g.node').style('display', function (d) { return shown.has(d.id) ? null : 'none'; });
+    linkG.selectAll('line').style('display', function (d) {
+      return shown.has(d.source.id) && shown.has(d.target.id) ? null : 'none';
+    });
+    highlight();
+    updateHud(shown.size);
+    renderRail();
+  }
+
+  function highlight() {
+    var related = new Set();
+    if (selected) {
+      related.add(selected.id);
+      links.forEach(function (l) {
+        if (l.source.id === selected.id) { related.add(l.target.id); }
+        if (l.target.id === selected.id) { related.add(l.source.id); }
       });
+    }
+    nodeG.selectAll('g.node')
+      .classed('sel', function (d) { return selected && d.id === selected.id; })
+      .classed('dim', function (d) { return selected && !related.has(d.id); });
+    linkG.selectAll('line')
+      .classed('hot', function (d) { return selected && (d.source.id === selected.id || d.target.id === selected.id); })
+      .classed('dim', function (d) { return selected && !(d.source.id === selected.id || d.target.id === selected.id); });
+  }
 
-      (function () {
-        // Outside a webview (a file:// snapshot) there is no host API. Falling back
-        // keeps the page alive instead of throwing on line one and rendering nothing.
-        const vscode =
-          typeof acquireVsCodeApi === "function"
-            ? acquireVsCodeApi()
-            : { postMessage: function () {} };
-        const TIER_COLOR = {
-          low: "#78C850",
-          medium: "#F8D030",
-          high: "#EE8130",
-          critical: "#7C538C",
-        };
-        const TIER_NAME = {
-          low: "GRASS / LOW",
-          medium: "ELECTRIC / MED",
-          high: "FIRE / HIGH",
-          critical: "DARK / CRITICAL",
-        };
+  function updateHud(shownCount) {
+    var counts = { low: 0, medium: 0, high: 0, critical: 0 };
+    nodes.forEach(function (n) { counts[n.tier]++; });
+    $('hud').innerHTML =
+      'SHOWING ' + shownCount + ' / ' + nodes.length + ' FUNCTIONS<br/>' +
+      'GRASS ' + counts.low + ' &nbsp; ELECTRIC ' + counts.medium +
+      ' &nbsp; FIRE ' + counts.high + ' &nbsp; DARK ' + counts.critical;
+  }
 
-        let nodes = [],
-          links = [],
-          selected = null,
-          frozen = false,
-          hideOrphans = false,
-          viewMode = "graph";
-        // True when this page is a file:// snapshot opened in a real browser: there is
-        // no extension host on the other end, so host-dependent buttons are hidden.
-        let standalone = false;
-        let activeTiers = new Set(["low", "medium", "high", "critical"]);
-        let query = "";
+  /* ------------------------------------------------------------ shared bits */
+  function covText(r) {
+    if (r.coverageIsProxy) { return r.coveragePct === 100 ? 'PROXY: NAMED' : 'PROXY: NONE'; }
+    return r.coveragePct === null ? 'NO DATA' : r.coveragePct + '%';
+  }
+  function maxOf(get) { return Math.max(10, d3.max(nodes, get) || 10); }
+  function bar(label, value, max, text, color) {
+    var pct = Math.max(0, Math.min(100, (value / max) * 100));
+    return '<div class="statrow"><span>' + label + '</span>' +
+      '<span class="bar"><i style="width:' + pct + '%;background:' + (color || 'var(--blue)') + '"></i></span>' +
+      '<span class="val">' + text + '</span></div>';
+  }
+  function colorFor(email) {
+    if (!authorColor.has(email)) {
+      authorColor.set(email, AUTHOR_COLORS[authorColor.size % AUTHOR_COLORS.length]);
+    }
+    return authorColor.get(email);
+  }
+  function dateText(t) {
+    if (!t) { return '--'; }
+    var d = new Date(t);
+    return d.toLocaleDateString(undefined, { year: '2-digit', month: 'short', day: 'numeric' });
+  }
+  function callersOf(d) {
+    return links.filter(function (l) { return l.target.id === d.id; }).map(function (l) { return l.source; });
+  }
+  function calleesOf(d) {
+    return links.filter(function (l) { return l.source.id === d.id; }).map(function (l) { return l.target; });
+  }
 
-        const svg = d3.select("#svg");
-        const root = svg.append("g");
-        svg
-          .append("defs")
-          .append("marker")
-          .attr("id", "arrow")
-          .attr("viewBox", "0 -5 10 10")
-          .attr("refX", 16)
-          .attr("markerWidth", 5)
-          .attr("markerHeight", 5)
-          .attr("orient", "auto")
-          .append("path")
-          .attr("d", "M0,-4L9,0L0,4")
-          .attr("fill", "#6b6355");
+  /* ------------------------------------------------------------- rail list */
+  function renderRail() {
+    var q = ($('railSearch').value || '').trim().toLowerCase();
+    var rows = nodes
+      .filter(function (n) { return !q || n.name.toLowerCase().indexOf(q) !== -1 || n.file.toLowerCase().indexOf(q) !== -1; })
+      .slice(0, 400);
+    $('railList').innerHTML = rows.map(function (n) {
+      return '<div class="row' + (selected && selected.id === n.id ? ' on' : '') + '" data-id="' + esc(n.id) + '">' +
+        '<i class="swatch" style="background:' + TIER_COLOR[n.tier] + '"></i>' +
+        '<span class="nm">' + esc(n.name) + '</span>' +
+        '<span class="sc">' + n.score + '</span></div>';
+    }).join('') || '<div class="empty" style="padding:8px">no matches</div>';
 
-        const linkG = root.append("g");
-        const nodeG = root.append("g");
+    $('railList').querySelectorAll('.row').forEach(function (row) {
+      row.addEventListener('click', function () {
+        var n = byId.get(row.dataset.id);
+        if (n) { select(n, true); centerOn(n); }
+      });
+    });
+  }
 
-        const zoom = d3
-          .zoom()
-          .scaleExtent([0.15, 6])
-          .on("zoom", (e) => root.attr("transform", e.transform));
-        svg.call(zoom);
+  /* ------------------------------------------------------------- dex entry */
+  function select(d, fromGraph) {
+    selected = d;
+    highlight();
+    renderRail();
+    var r = d.risk;
+    var cov = r.coveragePct === null ? 0 : r.coveragePct;
 
-        const radius = (n) => 6 + Math.sqrt(n.fanIn) * 3.4;
+    var html =
+      '<div class="dexno">NO. ' + String(d.index + 1).padStart(3, '0') + '</div>' +
+      '<div class="mon">' + esc(d.name) + '</div>' +
+      '<span class="badge" style="background:' + TIER_COLOR[d.tier] + (d.tier === 'critical' ? ';color:#fff' : '') + '">' +
+        TIER_NAME[d.tier] + '</span>' +
+      '<span class="badge" style="background:var(--cream);margin-left:6px">RISK ' + d.score + '</span>' +
+      '<div class="path">' + esc(d.file) + ':' + (d.startLine + 1) + '</div>' +
+      bar('CALLERS', r.fanIn, maxOf(function (n) { return n.fanIn; }), String(r.fanIn), 'var(--dex-red)') +
+      bar('CALLS OUT', d.fanOut, maxOf(function (n) { return n.fanOut; }), String(d.fanOut), 'var(--blue)') +
+      bar('COVERAGE', cov, 100, covText(r), cov >= 50 ? 'var(--grass)' : 'var(--fire)') +
+      bar('CHURN 90D', r.churnCount, maxOf(function (n) { return n.risk.churnCount; }), String(r.churnCount), 'var(--yellow)') +
+      bar('BUS FACTOR', r.busFactor, 5, String(r.busFactor), r.busFactor <= 1 ? 'var(--fire)' : 'var(--grass)');
 
-        let sim = null;
+    if (r.coverageIsProxy) {
+      html += '<div class="flag">NO lcov.info FOUND - coverage shown is a NAME PROXY, not a measured percentage.</div>';
+    }
+    if (r.busFactor === 1 && r.gitResolved) {
+      html += '<div class="flag">BUS FACTOR 1 - one person has ever touched these lines.</div>';
+    }
+    if (r.authors && r.authors.length) {
+      html += '<div class="flag" style="background:var(--gb-green)">ASK ' + esc(r.authors[0].name.toUpperCase()) +
+        ' - ' + r.authors[0].commits + ' of ' + totalCommits(r) + ' commits here.</div>';
+    }
+    html += '<div class="formula">score = ' + r.fanIn + '*2 + (100-' + (r.coveragePct === null ? 50 : r.coveragePct) +
+      ')/10 + ' + r.churnCount + ' - ' + (r.busFactor > 1 ? 2 : 0) + ' = ' + d.score + '</div>';
+    html += '<button class="btn wide" id="lineageBtn">VIEW LINEAGE</button>';
+    html += '<button class="btn wide" id="gitBtn">GIT HISTORY</button>';
+    if (!standalone) { html += '<button class="btn wide" id="open">OPEN IN EDITOR</button>'; }
 
-        function render() {
-          const link = linkG
-            .selectAll("line")
-            .data(links, (d) => d.source.id + ">" + d.target.id);
-          link.exit().remove();
-          link
-            .enter()
-            .append("line")
-            .attr("class", "link")
-            .attr("marker-end", "url(#arrow)");
+    $('entry').innerHTML = html;
+    $('lineageBtn').onclick = function () { openLineage(d); };
+    $('gitBtn').onclick = function () { focusGit(d); };
+    var openBtn = $('open');
+    if (openBtn) { openBtn.onclick = function () { vscode.postMessage({ type: 'reveal', id: d.id }); }; }
 
-          const node = nodeG.selectAll("g.node").data(nodes, (d) => d.id);
-          node.exit().remove();
-          const enter = node.enter().append("g").attr("class", "node");
-          enter
-            .append("circle")
-            .attr("r", radius)
-            .attr("fill", (d) => TIER_COLOR[d.tier])
-            .on("click", (e, d) => {
-              e.stopPropagation();
-              select(d);
-            });
-          enter
-            .append("text")
-            .attr("dy", (d) => -radius(d) - 4)
-            .attr("text-anchor", "middle")
-            .text((d) => d.name);
-          enter.call(
-            d3
-              .drag()
-              .on("start", (e, d) => {
-                if (!e.active && sim) sim.alphaTarget(0.25).restart();
-                d.fx = d.x;
-                d.fy = d.y;
-              })
-              .on("drag", (e, d) => {
-                d.fx = e.x;
-                d.fy = e.y;
-              })
-              .on("end", (e, d) => {
-                if (!e.active && sim) sim.alphaTarget(0);
-                if (!frozen) {
-                  d.fx = null;
-                  d.fy = null;
-                }
-              }),
-          );
+    var callers = callersOf(d), callees = calleesOf(d);
+    var list = function (arr) {
+      return arr.length
+        ? arr.map(function (n) {
+            return '<div class="row" data-id="' + esc(n.id) + '"><i class="swatch" style="background:' +
+              TIER_COLOR[n.tier] + '"></i><span class="nm">' + esc(n.name) + '</span></div>';
+          }).join('')
+        : '<div class="empty">none</div>';
+    };
+    var rel = $('relations');
+    rel.style.display = '';
+    rel.innerHTML = '<div class="cardhead">BLAST RADIUS</div>' +
+      '<div class="prose"><b>CALLED BY (' + callers.length + ')</b>' + list(callers) +
+      '<div style="height:8px"></div><b>CALLS (' + callees.length + ')</b>' + list(callees) + '</div>';
+    rel.querySelectorAll('.row').forEach(function (row) {
+      row.addEventListener('click', function () {
+        var n = byId.get(row.dataset.id);
+        if (n) { select(n, true); centerOn(n); }
+      });
+    });
+  }
 
-          sim = d3
-            .forceSimulation(nodes)
-            .force(
-              "link",
-              d3
-                .forceLink(links)
-                .id((d) => d.id)
-                .distance(70)
-                .strength(0.35),
-            )
-            .force("charge", d3.forceManyBody().strength(-230))
-            .force(
-              "collide",
-              d3.forceCollide().radius((d) => radius(d) + 12),
-            )
-            .force(
-              "center",
-              d3.forceCenter(
-                document.querySelector(".canvas-wrap").clientWidth / 2,
-                document.querySelector(".canvas-wrap").clientHeight / 2,
-              ),
-            )
-            .on("tick", tick);
+  function totalCommits(r) {
+    return (r.authors || []).reduce(function (a, x) { return a + x.commits; }, 0);
+  }
 
-          applyFilter();
-        }
+  /* --------------------------------------------------------- hover tooltip */
+  var tipTimer = null;
+  function showTip(event, d) {
+    if (tipTimer) { clearTimeout(tipTimer); tipTimer = null; }
+    var r = d.risk;
+    var cov = r.coveragePct === null ? 0 : r.coveragePct;
+    var lead = (r.authors && r.authors.length) ? r.authors[0] : null;
+    var tip = $('tip');
+    tip.innerHTML =
+      '<h4>' + esc(d.name) + '</h4>' +
+      '<span class="badge" style="background:' + TIER_COLOR[d.tier] + (d.tier === 'critical' ? ';color:#fff' : '') +
+        '">' + TIER_NAME[d.tier] + '</span>' +
+      '<span class="badge" style="background:var(--cream);margin-left:5px">RISK ' + d.score + '</span>' +
+      '<div class="path" style="margin:7px 0 4px">' + esc(d.file) + ':' + (d.startLine + 1) + '</div>' +
+      tipBar('CALLERS', r.fanIn, maxOf(function (n) { return n.fanIn; }), String(r.fanIn), 'var(--dex-red)') +
+      tipBar('CALLS OUT', d.fanOut, maxOf(function (n) { return n.fanOut; }), String(d.fanOut), 'var(--blue)') +
+      tipBar('COVERAGE', cov, 100, covText(r), cov >= 50 ? 'var(--grass)' : 'var(--fire)') +
+      tipBar('CHURN 90D', r.churnCount, maxOf(function (n) { return n.risk.churnCount; }), String(r.churnCount), 'var(--yellow)') +
+      tipBar('BUS', r.busFactor, 5, String(r.busFactor), r.busFactor <= 1 ? 'var(--fire)' : 'var(--grass)') +
+      (lead ? '<div style="margin-top:6px">LEAD: ' + esc(lead.name) + ' (' + lead.commits + ')</div>' : '') +
+      '<div class="acts">' +
+        '<button class="btn" data-act="lineage">LINEAGE</button>' +
+        '<button class="btn" data-act="git">GIT HISTORY</button>' +
+      '</div>';
+    tip.classList.add('on');
+    tip.onmouseenter = function () { if (tipTimer) { clearTimeout(tipTimer); tipTimer = null; } };
+    tip.onmouseleave = scheduleHideTip;
+    tip.querySelector('[data-act="lineage"]').onclick = function () { hideTip(); openLineage(d); };
+    tip.querySelector('[data-act="git"]').onclick = function () { hideTip(); focusGit(d); };
+    moveTip(event);
+  }
+  function tipBar(label, value, max, text, color) {
+    var pct = Math.max(0, Math.min(100, (value / max) * 100));
+    return '<div class="tiprow"><span>' + label + '</span>' +
+      '<span class="bar"><i style="width:' + pct + '%;background:' + color + '"></i></span>' +
+      '<span class="val">' + text + '</span></div>';
+  }
+  function moveTip(event) {
+    var tip = $('tip');
+    var w = 268, h = tip.offsetHeight || 220;
+    var x = event.clientX + 16, y = event.clientY + 14;
+    if (x + w > window.innerWidth - 8) { x = event.clientX - w - 16; }
+    if (y + h > window.innerHeight - 8) { y = Math.max(8, window.innerHeight - h - 8); }
+    tip.style.left = x + 'px';
+    tip.style.top = y + 'px';
+  }
+  function scheduleHideTip() {
+    if (tipTimer) { clearTimeout(tipTimer); }
+    tipTimer = setTimeout(hideTip, 260);
+  }
+  function hideTip() {
+    if (tipTimer) { clearTimeout(tipTimer); tipTimer = null; }
+    $('tip').classList.remove('on');
+  }
 
-        function tick() {
-          linkG
-            .selectAll("line")
-            .attr("x1", (d) => d.source.x)
-            .attr("y1", (d) => d.source.y)
-            .attr("x2", (d) => d.target.x)
-            .attr("y2", (d) => d.target.y);
-          nodeG
-            .selectAll("g.node")
-            .attr("transform", (d) => "translate(" + d.x + "," + d.y + ")");
-        }
+  /* --------------------------------------------------------- lineage modal */
+  function chainUp(d, depth) {
+    var levels = [], seen = new Set([d.id]), frontier = [d];
+    for (var i = 0; i < depth; i++) {
+      var next = [];
+      frontier.forEach(function (n) {
+        callersOf(n).forEach(function (c) { if (!seen.has(c.id)) { seen.add(c.id); next.push(c); } });
+      });
+      if (!next.length) { break; }
+      levels.unshift(next);
+      frontier = next;
+    }
+    return levels;
+  }
+  function chainDown(d, depth) {
+    var levels = [], seen = new Set([d.id]), frontier = [d];
+    for (var i = 0; i < depth; i++) {
+      var next = [];
+      frontier.forEach(function (n) {
+        calleesOf(n).forEach(function (c) { if (!seen.has(c.id)) { seen.add(c.id); next.push(c); } });
+      });
+      if (!next.length) { break; }
+      levels.push(next);
+      frontier = next;
+    }
+    return levels;
+  }
+  function chip(n, self) {
+    return '<div class="chip' + (self ? ' self' : '') + '" data-id="' + esc(n.id) + '">' +
+      '<i class="tierdot" style="background:' + TIER_COLOR[n.tier] + '"></i>' +
+      esc(n.name) + ' <span style="color:var(--muted)">' + n.score + '</span></div>';
+  }
+  function connector() { return '<div class="link-v"></div><div class="arrow-v"></div>'; }
 
-        function visible(d) {
-          if (!activeTiers.has(d.tier)) return false;
-          if (hideOrphans && d.fanIn === 0 && d.fanOut === 0) return false;
-          if (
-            query &&
-            !d.name.toLowerCase().includes(query) &&
-            !d.file.toLowerCase().includes(query)
-          )
-            return false;
-          return true;
-        }
+  function openLineage(d, push) {
+    if (push !== false && selected && selected.id !== d.id) { lineageStack.push(selected.id); }
+    selected = d;
+    var up = chainUp(d, 3), down = chainDown(d, 3);
+    var html = '<div class="chain">';
+    up.forEach(function (lvl, i) {
+      html += '<div class="lvlnote">' + (up.length - i) + ' level' + (up.length - i === 1 ? '' : 's') + ' above - callers</div>';
+      html += '<div class="lvl">' + lvl.map(function (n) { return chip(n); }).join('') + '</div>';
+      html += connector();
+    });
+    html += '<div class="lvl">' + chip(d, true) + '</div>';
+    down.forEach(function (lvl, i) {
+      html += connector();
+      html += '<div class="lvlnote">' + (i + 1) + ' level' + (i === 0 ? '' : 's') + ' below - calls</div>';
+      html += '<div class="lvl">' + lvl.map(function (n) { return chip(n); }).join('') + '</div>';
+    });
+    html += '</div>';
 
-        function applyFilter() {
-          const shown = new Set(nodes.filter(visible).map((d) => d.id));
-          nodeG
-            .selectAll("g.node")
-            .style("display", (d) => (shown.has(d.id) ? null : "none"));
-          linkG
-            .selectAll("line")
-            .style("display", (d) =>
-              shown.has(d.source.id) && shown.has(d.target.id) ? null : "none",
-            );
-          highlight();
-          updateHud(shown.size);
-        }
+    if (!up.length && !down.length) {
+      html = '<div class="empty" style="text-align:center;padding:30px">' +
+        esc(d.name) + ' has no callers and no calls inside this workspace.<br/>' +
+        'Changing it reaches nothing else here.</div>';
+    }
 
-        function highlight() {
-          const related = new Set();
-          if (selected) {
-            related.add(selected.id);
-            links.forEach((l) => {
-              if (l.source.id === selected.id) related.add(l.target.id);
-              if (l.target.id === selected.id) related.add(l.source.id);
-            });
-          }
-          nodeG
-            .selectAll("g.node")
-            .classed("sel", (d) => selected && d.id === selected.id)
-            .classed("dim", (d) => selected && !related.has(d.id));
-          linkG
-            .selectAll("line")
-            .classed(
-              "hot",
-              (d) =>
-                selected &&
-                (d.source.id === selected.id || d.target.id === selected.id),
-            )
-            .classed(
-              "dim",
-              (d) =>
-                selected &&
-                !(d.source.id === selected.id || d.target.id === selected.id),
-            );
-        }
+    html += '<div class="formula" style="margin-top:18px">' +
+      esc(d.file) + ':' + (d.startLine + 1) + ' &nbsp;|&nbsp; risk ' + d.score + ' &nbsp;|&nbsp; ' +
+      d.risk.fanIn + ' callers &nbsp;|&nbsp; ' + covText(d.risk) + ' &nbsp;|&nbsp; ' +
+      d.risk.churnCount + ' changes/90d &nbsp;|&nbsp; bus factor ' + d.risk.busFactor + '</div>';
 
-        function updateHud(shownCount) {
-          const counts = { low: 0, medium: 0, high: 0, critical: 0 };
-          nodes.forEach((n) => counts[n.tier]++);
-          document.getElementById("hud").innerHTML =
-            "SHOWING " +
-            shownCount +
-            " / " +
-            nodes.length +
-            " FUNCTIONS<br/>" +
-            "GRASS " +
-            counts.low +
-            " &nbsp; ELECTRIC " +
-            counts.medium +
-            " &nbsp; FIRE " +
-            counts.high +
-            " &nbsp; DARK " +
-            counts.critical;
-        }
+    $('lineageBody').innerHTML = html;
+    $('lineageTab').textContent = d.name + ' - lineage';
+    $('lineage').classList.add('on');
+    $('lineageBody').querySelectorAll('.chip[data-id]').forEach(function (c) {
+      c.addEventListener('click', function () {
+        var n = byId.get(c.dataset.id);
+        if (n && n.id !== d.id) { openLineage(n); }
+      });
+    });
+    $('lineageBack').style.visibility = lineageStack.length ? 'visible' : 'hidden';
+  }
+  function closeLineage() { $('lineage').classList.remove('on'); lineageStack = []; }
+  $('lineageClose').addEventListener('click', closeLineage);
+  $('lineageTabX').addEventListener('click', closeLineage);
+  $('lineage').addEventListener('click', function (e) { if (e.target === $('lineage')) { closeLineage(); } });
+  $('lineageBack').addEventListener('click', function () {
+    var prev = lineageStack.pop();
+    var n = prev && byId.get(prev);
+    if (n) { openLineage(n, false); }
+  });
+  $('lineageGraph').addEventListener('click', function () {
+    closeLineage();
+    showTab('schema');
+    if (selected) { select(selected, true); centerOn(selected); }
+  });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') { closeLineage(); hideTip(); } });
 
-        function setViewMode(nextMode) {
-          viewMode = nextMode;
-          const overlay = document.getElementById("schemaOverlay");
-          const svgEl = document.getElementById("svg");
-          const schemaBtn = document.getElementById("schema");
-          const showSchema = viewMode === "schema";
+  /* ----------------------------------------------------------- index table */
+  var indexSort = { key: 'score', dir: -1 };
+  /** dir 1 = ascending, -1 = descending. */
+  function cmp(va, vb, dir) {
+    if (va < vb) { return -1 * dir; }
+    if (va > vb) { return 1 * dir; }
+    return 0;
+  }
+  function sortVal(n, key) {
+    if (key === 'score') { return n.score; }
+    if (key === 'name') { return n.name.toLowerCase(); }
+    if (key === 'fanIn') { return n.fanIn; }
+    if (key === 'fanOut') { return n.fanOut; }
+    if (key === 'coverage') { return n.risk.coveragePct === null ? -1 : n.risk.coveragePct; }
+    if (key === 'churn') { return n.risk.churnCount; }
+    if (key === 'bus') { return n.risk.busFactor; }
+    return n.file.toLowerCase();
+  }
+  function renderIndex() {
+    var q = ($('indexSearch').value || '').trim().toLowerCase();
+    var rows = nodes.filter(function (n) {
+      return !q || n.name.toLowerCase().indexOf(q) !== -1 || n.file.toLowerCase().indexOf(q) !== -1;
+    }).slice().sort(function (a, b) {
+      return cmp(sortVal(a, indexSort.key), sortVal(b, indexSort.key), indexSort.dir);
+    });
+    $('indexTable').querySelector('tbody').innerHTML = rows.map(function (n) {
+      return '<tr data-id="' + esc(n.id) + '"' + (selected && selected.id === n.id ? ' class="on"' : '') + '>' +
+        '<td><span class="pill" style="background:' + TIER_COLOR[n.tier] + (n.tier === 'critical' ? ';color:#fff' : '') +
+          '">' + n.score + '</span></td>' +
+        '<td class="name">' + esc(n.name) + '</td>' +
+        '<td>' + n.fanIn + '</td><td>' + n.fanOut + '</td>' +
+        '<td>' + covText(n.risk) + '</td>' +
+        '<td>' + n.risk.churnCount + '</td>' +
+        '<td>' + (n.risk.gitResolved ? n.risk.busFactor : '--') + '</td>' +
+        '<td class="file">' + esc(n.file) + ':' + (n.startLine + 1) + '</td></tr>';
+    }).join('');
+    $('indexTable').querySelectorAll('tbody tr').forEach(function (tr) {
+      tr.addEventListener('click', function () {
+        var n = byId.get(tr.dataset.id);
+        if (n) { select(n, false); openLineage(n); }
+      });
+    });
+  }
+  $('indexTable').querySelectorAll('th[data-sort]').forEach(function (th) {
+    th.addEventListener('click', function () {
+      var key = th.dataset.sort;
+      indexSort.dir = indexSort.key === key ? -indexSort.dir : -1;
+      indexSort.key = key;
+      $('indexTable').querySelectorAll('th').forEach(function (o) { o.classList.remove('sorted'); });
+      th.classList.add('sorted');
+      renderIndex();
+    });
+  });
+  $('indexSearch').addEventListener('input', renderIndex);
 
-          if (overlay) {
-            overlay.classList.toggle("visible", showSchema);
-          }
-          if (svgEl) {
-            svgEl.style.display = showSchema ? "none" : "block";
-          }
-          if (schemaBtn) {
-            schemaBtn.classList.toggle("on", showSchema);
-          }
-          const aside = document.querySelector("aside");
-          if (aside) {
-            aside.style.display = showSchema ? "none" : "block";
-          }
-          const hud = document.getElementById("hud");
-          if (hud) {
-            hud.style.display = showSchema ? "none" : "block";
-          }
-        }
+  /* ------------------------------------------------------------- git view */
+  var gitFocus = null;
+  var gitSort = { key: 'churn', dir: -1 };
 
-        function bar(label, value, max, text, color) {
-          const pct = Math.max(0, Math.min(100, (value / max) * 100));
-          return (
-            '<div class="statrow"><span>' +
-            label +
-            "</span>" +
-            '<span class="bar"><i style="width:' +
-            pct +
-            "%;background:" +
-            (color || "var(--blue)") +
-            '"></i></span>' +
-            '<span class="val">' +
-            text +
-            "</span></div>"
-          );
-        }
+  function focusGit(d) {
+    gitFocus = d;
+    selected = d;
+    showTab('git');
+    $('gitSearch').value = d.name;
+    renderGit();
+  }
 
-        function esc(s) {
-          return String(s)
-            .replace(/&/g, "&amp;")
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;");
-        }
+  function months(n) {
+    var out = [], now = new Date();
+    for (var i = n - 1; i >= 0; i--) {
+      var d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      out.push({ key: d.getFullYear() + '-' + d.getMonth(), label: d.toLocaleDateString(undefined, { month: 'short' }) });
+    }
+    return out;
+  }
+  function sparkline(commits, span) {
+    var buckets = {};
+    span.forEach(function (m) { buckets[m.key] = 0; });
+    (commits || []).forEach(function (c) {
+      var d = new Date(c.t);
+      var k = d.getFullYear() + '-' + d.getMonth();
+      if (k in buckets) { buckets[k]++; }
+    });
+    var max = Math.max(1, Math.max.apply(null, span.map(function (m) { return buckets[m.key]; })));
+    return '<div class="spark">' + span.map(function (m) {
+      var v = buckets[m.key];
+      return '<i title="' + m.label + ': ' + v + '" style="height:' + Math.round((v / max) * 24) + 'px' +
+        (v === 0 ? ';background:#d9cfb4' : '') + '"></i>';
+    }).join('') + '</div>';
+  }
+  function contribBar(r) {
+    var total = totalCommits(r);
+    if (!total) { return '<div class="contrib"></div>'; }
+    return '<div class="contrib">' + r.authors.map(function (a) {
+      return '<span title="' + esc(a.name) + ': ' + a.commits + '" style="width:' +
+        ((a.commits / total) * 100) + '%;background:' + colorFor(a.email) + '"></span>';
+    }).join('') + '</div>';
+  }
 
-        function select(d) {
-          selected = d;
-          highlight();
-          const r = d.risk;
-          const covText = r.coverageIsProxy
-            ? r.coveragePct === 100
-              ? "PROXY: NAMED"
-              : "PROXY: NONE"
-            : r.coveragePct === null
-              ? "NO DATA"
-              : r.coveragePct + "%";
-          const covValue = r.coveragePct === null ? 0 : r.coveragePct;
+  function renderGit() {
+    var span = months(6);
 
-          let html =
-            '<div class="dexno">NO. ' +
-            String(d.index + 1).padStart(3, "0") +
-            "</div>" +
-            '<div class="mon">' +
-            esc(d.name) +
-            "</div>" +
-            '<span class="badge" style="background:' +
-            TIER_COLOR[d.tier] +
-            (d.tier === "critical" ? ";color:#fff" : "") +
-            '">' +
-            TIER_NAME[d.tier] +
-            "</span>" +
-            '<span class="badge" style="background:var(--cream);margin-left:6px">RISK ' +
-            d.score +
-            "</span>" +
-            '<div class="path">' +
-            esc(d.file) +
-            ":" +
-            (d.startLine + 1) +
-            "</div>" +
-            bar(
-              "CALLERS",
-              r.fanIn,
-              Math.max(10, d3.max(nodes, (n) => n.fanIn) || 10),
-              String(r.fanIn),
-              "var(--dex-red)",
-            ) +
-            bar(
-              "CALLS OUT",
-              d.fanOut,
-              Math.max(10, d3.max(nodes, (n) => n.fanOut) || 10),
-              String(d.fanOut),
-              "var(--blue)",
-            ) +
-            bar(
-              "COVERAGE",
-              covValue,
-              100,
-              covText,
-              covValue >= 50 ? "var(--grass)" : "var(--fire)",
-            ) +
-            bar(
-              "CHURN 90D",
-              r.churnCount,
-              Math.max(10, d3.max(nodes, (n) => n.risk.churnCount) || 10),
-              String(r.churnCount),
-              "var(--yellow)",
-            ) +
-            bar(
-              "BUS FACTOR",
-              r.busFactor,
-              5,
-              String(r.busFactor),
-              r.busFactor <= 1 ? "var(--fire)" : "var(--grass)",
-            );
+    // Aggregate every function's history into per-author cards.
+    var byAuthor = new Map();
+    nodes.forEach(function (n) {
+      (n.risk.authors || []).forEach(function (a) {
+        var e = byAuthor.get(a.email) || { name: a.name, email: a.email, commits: 0, funcs: 0, commitList: [] };
+        e.commits += a.commits;
+        e.funcs += 1;
+        byAuthor.set(a.email, e);
+      });
+      (n.risk.commits || []).forEach(function (c) {
+        var e = byAuthor.get(c.email);
+        if (e) { e.commitList.push(c); }
+      });
+    });
+    var authors = Array.from(byAuthor.values()).sort(function (a, b) { return b.commits - a.commits; });
 
-          if (r.coverageIsProxy) {
-            html +=
-              '<div class="flag">NO lcov.info FOUND - coverage shown is a NAME PROXY, not a measured percentage.</div>';
-          }
-          if (r.busFactor === 1) {
-            html +=
-              '<div class="flag">BUS FACTOR 1 - one person has ever touched these lines.</div>';
-          }
-          html +=
-            '<div class="formula">score = ' +
-            r.fanIn +
-            "*2 + (100-" +
-            (r.coveragePct === null ? 50 : r.coveragePct) +
-            ")/10 + " +
-            r.churnCount +
-            " - " +
-            (r.busFactor > 1 ? 2 : 0) +
-            " = " +
-            d.score +
-            "</div>";
-          if (!standalone) {
-            html +=
-              '<button class="btn wide" id="open">OPEN IN EDITOR</button>';
-          }
+    $('gitLegend').innerHTML = authors.length
+      ? '<b>AUTHORS IN RANGE</b>' + authors.map(function (a) {
+          return '<span class="key"><i style="background:' + colorFor(a.email) + '"></i>' + esc(a.name) + '</span>';
+        }).join('')
+      : '<b>NO GIT HISTORY AVAILABLE</b>';
 
-          const entry = document.getElementById("entry");
-          entry.innerHTML = html;
-          const openBtn = document.getElementById("open");
-          if (openBtn) {
-            openBtn.onclick = () =>
-              vscode.postMessage({ type: "reveal", id: d.id });
-          }
+    var cards = authors.slice(0, 8).map(function (a, i) {
+      return '<div class="authorcard">' +
+        '<div class="top"><i class="av" style="background:' + colorFor(a.email) + '"></i>' +
+        '<span class="who">' + esc(a.name) + '</span><span class="rank">#' + (i + 1) + '</span></div>' +
+        '<div class="meta">' + a.commits + ' commits across ' + a.funcs + ' function' + (a.funcs === 1 ? '' : 's') +
+        '<br/>' + esc(a.email) + '</div>' +
+        sparkline(a.commitList, span) +
+        '<div class="meta" style="margin:6px 0 0">' + span.map(function (m) { return m.label; }).join(' ') + '</div>' +
+        '</div>';
+    }).join('');
 
-          const callers = links
-            .filter((l) => l.target.id === d.id)
-            .map((l) => l.source);
-          const callees = links
-            .filter((l) => l.source.id === d.id)
-            .map((l) => l.target);
-          const list = (arr) =>
-            arr.length
-              ? arr
-                  .map((n) => "<div>&#9642; " + esc(n.name) + "</div>")
-                  .join("")
-              : '<div class="empty">none</div>';
-          const extra = document.createElement("div");
-          extra.className = "card";
-          extra.innerHTML =
-            '<div class="dexno">BLAST RADIUS</div><div class="prose" style="margin-top:6px">' +
-            "<b>CALLED BY (" +
-            callers.length +
-            ")</b>" +
-            list(callers) +
-            '<div style="height:8px"></div><b>CALLS (' +
-            callees.length +
-            ")</b>" +
-            list(callees) +
-            "</div>";
-          entry.parentElement.appendChild(extra);
-          entry.parentElement.querySelectorAll(".card").forEach((c, i) => {
-            if (i > 1) c.remove();
-          });
-        }
+    var focusHtml = '';
+    if (gitFocus) {
+      var r = gitFocus.risk;
+      focusHtml = '<div class="focusbar"><b>FOCUSED:</b> ' + esc(gitFocus.name) + ' &nbsp; ' +
+        esc(gitFocus.file) + ':' + (gitFocus.startLine + 1) + '<br/>' +
+        (r.authors && r.authors.length
+          ? 'Lead changer <b>' + esc(r.authors[0].name) + '</b> (' + r.authors[0].commits + ' of ' +
+            totalCommits(r) + ' commits) &nbsp;|&nbsp; ' + r.churnCount + ' in the last 90 days' +
+            ' &nbsp;|&nbsp; last change ' + dateText(r.lastChange) +
+            '<br/>Contact ' + esc(r.authors[0].email) + ' about this function.'
+          : 'No commits recorded for these lines.') +
+        ' <button class="btn" id="gitClear" style="margin-left:8px">CLEAR</button></div>';
+    }
 
-        function centerOn(d) {
-          if (d.x === undefined) return;
-          const wrap = document.querySelector(".canvas-wrap");
-          const t = d3.zoomIdentity
-            .translate(wrap.clientWidth / 2, wrap.clientHeight / 2)
-            .scale(1.6)
-            .translate(-d.x, -d.y);
-          svg.transition().duration(600).call(zoom.transform, t);
-        }
+    var q = ($('gitSearch').value || '').trim().toLowerCase();
+    var rows = nodes.filter(function (n) {
+      if (!q) { return true; }
+      if (n.name.toLowerCase().indexOf(q) !== -1) { return true; }
+      return (n.risk.authors || []).some(function (a) {
+        return a.name.toLowerCase().indexOf(q) !== -1 || a.email.toLowerCase().indexOf(q) !== -1;
+      });
+    }).slice().sort(function (a, b) {
+      var get = function (n) {
+        if (gitSort.key === 'churn') { return n.risk.churnCount; }
+        if (gitSort.key === 'bus') { return n.risk.busFactor; }
+        if (gitSort.key === 'last') { return n.risk.lastChange || 0; }
+        if (gitSort.key === 'contrib') { return totalCommits(n.risk); }
+        if (gitSort.key === 'lead') { return (n.risk.authors[0] || { name: '' }).name.toLowerCase(); }
+        return n.name.toLowerCase();
+      };
+      return cmp(get(a), get(b), gitSort.dir);
+    });
 
-        svg.on("click", () => {
-          selected = null;
-          highlight();
-        });
+    $('gitLegend').insertAdjacentHTML('afterend', '');
+    var host = $('view-git').querySelector('.sheet');
+    var existing = host.querySelector('.authorcards');
+    if (existing) { existing.remove(); }
+    var existingFocus = host.querySelector('.focusbar');
+    if (existingFocus) { existingFocus.remove(); }
+    $('gitLegend').insertAdjacentHTML('afterend',
+      focusHtml + '<div class="authorcards">' + cards + '</div>');
+    if (gitFocus) {
+      var clear = $('gitClear');
+      if (clear) {
+        clear.onclick = function () { gitFocus = null; $('gitSearch').value = ''; renderGit(); };
+      }
+    }
 
-        document.getElementById("search").addEventListener("input", (e) => {
-          query = e.target.value.trim().toLowerCase();
-          applyFilter();
-        });
-        document.querySelectorAll(".tierchip").forEach((chip) => {
-          chip.addEventListener("click", () => {
-            const tier = chip.dataset.tier;
-            if (activeTiers.has(tier)) {
-              activeTiers.delete(tier);
-              chip.classList.add("off");
-            } else {
-              activeTiers.add(tier);
-              chip.classList.remove("off");
-            }
-            applyFilter();
-          });
-        });
-        document.getElementById("isolate").addEventListener("click", (e) => {
-          hideOrphans = !hideOrphans;
-          e.target.classList.toggle("on", hideOrphans);
-          applyFilter();
-        });
-        document.getElementById("freeze").addEventListener("click", (e) => {
-          frozen = !frozen;
-          e.target.classList.toggle("on", frozen);
-          if (frozen) {
-            nodes.forEach((n) => {
-              n.fx = n.x;
-              n.fy = n.y;
-            });
-            sim && sim.stop();
-          } else {
-            nodes.forEach((n) => {
-              n.fx = null;
-              n.fy = null;
-            });
-            sim && sim.alpha(0.4).restart();
-          }
-        });
-        document.getElementById("schema").addEventListener("click", () => {
-          vscode.postMessage({ type: "schema" });
-        });
-        document.getElementById("browser").addEventListener("click", () => {
-          vscode.postMessage({ type: "browser", id: selected && selected.id });
-        });
-        document.getElementById("reset").addEventListener("click", () => {
-          svg.transition().duration(400).call(zoom.transform, d3.zoomIdentity);
-        });
+    $('gitTable').querySelector('tbody').innerHTML = rows.map(function (n) {
+      var r = n.risk;
+      var lead = (r.authors || [])[0];
+      return '<tr data-id="' + esc(n.id) + '"' + (gitFocus && gitFocus.id === n.id ? ' class="on"' : '') + '>' +
+        '<td>' + r.churnCount + '</td>' +
+        '<td class="name">' + esc(n.name) + '</td>' +
+        '<td>' + contribBar(r) + '</td>' +
+        '<td class="lead">' + (lead ? esc(lead.name) + ' (' + lead.commits + ')' : '--') + '</td>' +
+        '<td>' + (r.gitResolved ? r.busFactor : '--') + '</td>' +
+        '<td>' + dateText(r.lastChange) + '</td></tr>';
+    }).join('');
+    $('gitTable').querySelectorAll('tbody tr').forEach(function (tr) {
+      tr.addEventListener('click', function () {
+        var n = byId.get(tr.dataset.id);
+        if (n) { gitFocus = n; selected = n; renderGit(); }
+      });
+    });
+  }
+  $('gitTable').querySelectorAll('th[data-gsort]').forEach(function (th) {
+    th.addEventListener('click', function () {
+      var key = th.dataset.gsort;
+      gitSort.dir = gitSort.key === key ? -gitSort.dir : -1;
+      gitSort.key = key;
+      $('gitTable').querySelectorAll('th').forEach(function (o) { o.classList.remove('sorted'); });
+      th.classList.add('sorted');
+      renderGit();
+    });
+  });
+  $('gitSearch').addEventListener('input', renderGit);
 
-        window.addEventListener("message", (event) => {
-          const msg = event.data;
-          if (msg.type !== "graph") return;
-          if (msg.standalone) {
-            standalone = true;
-            document.getElementById("browser").style.display = "none";
-          }
-          if (msg.viewMode) {
-            setViewMode(msg.viewMode);
-          }
-          if (msg.viewMode === "schema" && msg.schemaHtml) {
-            const overlay = document.getElementById("schemaOverlay");
-            if (overlay) {
-              overlay.innerHTML = msg.schemaHtml;
-            }
-          }
-          const prev = new Map(nodes.map((n) => [n.id, n]));
-          nodes = msg.nodes.map((n, i) => {
-            const old = prev.get(n.id);
-            const merged = Object.assign({}, n, { index: i });
-            if (old) {
-              merged.x = old.x;
-              merged.y = old.y;
-              merged.vx = 0;
-              merged.vy = 0;
-            }
-            return merged;
-          });
-          const byId = new Map(nodes.map((n) => [n.id, n]));
-          links = msg.edges
-            .filter((e) => byId.has(e.from) && byId.has(e.to))
-            .map((e) => ({ source: byId.get(e.from), target: byId.get(e.to) }));
-          document.getElementById("subtitle").textContent =
-            msg.summary.toUpperCase();
-          render();
-          if (msg.focus) {
-            const target = nodes.find((n) => n.id === msg.focus);
-            if (target) {
-              select(target);
-              setTimeout(() => centerOn(target), 600);
-            }
-          }
-        });
+  /* ------------------------------------------------------------- controls */
+  svg.on('click', function () { selected = null; highlight(); renderRail(); });
+  $('search').addEventListener('input', function (e) {
+    query = e.target.value.trim().toLowerCase();
+    applyFilter();
+  });
+  $('railSearch').addEventListener('input', renderRail);
+  document.querySelectorAll('.tierchip').forEach(function (chipEl) {
+    chipEl.addEventListener('click', function () {
+      var tier = chipEl.dataset.tier;
+      if (activeTiers.has(tier)) { activeTiers.delete(tier); chipEl.classList.add('off'); }
+      else { activeTiers.add(tier); chipEl.classList.remove('off'); }
+      applyFilter();
+    });
+  });
+  $('isolate').addEventListener('click', function (e) {
+    hideOrphans = !hideOrphans;
+    e.target.classList.toggle('on', hideOrphans);
+    applyFilter();
+    fitView();
+  });
+  $('freeze').addEventListener('click', function (e) {
+    frozen = !frozen;
+    e.target.classList.toggle('on', frozen);
+    if (frozen) {
+      nodes.forEach(function (n) { n.fx = n.x; n.fy = n.y; });
+      if (sim) { sim.stop(); }
+    } else {
+      nodes.forEach(function (n) { if (n.fanIn > 0 || n.fanOut > 0) { n.fx = null; n.fy = null; } });
+      if (sim) { sim.alpha(0.4).restart(); }
+    }
+  });
+  $('reset').addEventListener('click', function () { fitView(); });
+  $('browser').addEventListener('click', function () { vscode.postMessage({ type: 'browser' }); });
 
-        vscode.postMessage({ type: "ready" });
+  /* ----------------------------------------------------------------- data */
+  window.addEventListener('message', function (event) {
+    var msg = event.data;
+    if (!msg || msg.type !== 'graph') { return; }
+    if (msg.standalone) {
+      standalone = true;
+      $('browser').style.display = 'none';
+    }
+    var prev = new Map(nodes.map(function (n) { return [n.id, n]; }));
+    nodes = msg.nodes.map(function (n, i) {
+      var old = prev.get(n.id);
+      var merged = Object.assign({}, n, { index: i });
+      if (old) { merged.x = old.x; merged.y = old.y; merged.vx = 0; merged.vy = 0; }
+      return merged;
+    });
+    byId = new Map(nodes.map(function (n) { return [n.id, n]; }));
+    links = msg.edges
+      .filter(function (e) { return byId.has(e.from) && byId.has(e.to); })
+      .map(function (e) { return { source: byId.get(e.from), target: byId.get(e.to) }; });
+    $('subtitle').textContent = String(msg.summary || '').toUpperCase();
+    render();
+    if (msg.focus) {
+      var target = byId.get(msg.focus);
+      if (target) {
+        select(target, true);
+        setTimeout(function () { centerOn(target); }, 900);
+      }
+    }
+    if (tab === 'index') { renderIndex(); }
+    if (tab === 'git') { renderGit(); }
+  });
 
-        // If no graph payload shows up, say why rather than leaving a blank canvas.
-        setTimeout(function () {
-          if (nodes.length > 0) {
-            return;
-          }
-          const hud = document.getElementById("hud");
-          hud.style.background = "#FFCB05";
-          hud.innerHTML =
-            "NO GRAPH DATA RECEIVED.<br/>" +
-            (standalone
-              ? "This snapshot was generated empty."
-              : 'If this is a browser tab, re-run "Blast Radius: Open Graph in Browser" ' +
-                "after reloading the VS Code window.");
-          document.getElementById("subtitle").textContent = "NO DATA";
-        }, 4000);
-      })();
-    </script>
-  </body>
+  vscode.postMessage({ type: 'ready' });
+
+  // If no graph payload shows up, say why rather than leaving a blank canvas.
+  setTimeout(function () {
+    if (nodes.length > 0) { return; }
+    var hud = $('hud');
+    hud.style.background = '#FFCB05';
+    hud.innerHTML = 'NO GRAPH DATA RECEIVED.<br/>' +
+      (standalone
+        ? 'This snapshot was generated empty.'
+        : 'If this is a browser tab, re-run "Blast Radius: Open Graph in Browser" ' +
+          'after reloading the VS Code window.');
+    $('subtitle').textContent = 'NO DATA';
+  }, 4000);
+})();
+</script>
+</body>
 </html>

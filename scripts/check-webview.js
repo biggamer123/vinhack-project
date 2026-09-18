@@ -105,6 +105,10 @@ async function buildPayload() {
       coverageIsProxy: lcov.size === 0,
       churnCount: h ? h.churnCount : 0,
       busFactor: h ? h.busFactor : 0,
+      authors: h ? h.authors : [],
+      lastChange: h && h.lastChange ? h.lastChange.getTime() : null,
+      commits: h ? h.commits.slice(0, 50).map((c) => ({ email: c.email, t: c.date.getTime() })) : [],
+      gitResolved: !!h,
     };
     const score = computeScore(risk);
     nodes.push({
@@ -209,9 +213,8 @@ async function buildPayload() {
       .textContent.includes("= " + payload.nodes[0].score),
   );
   check(
-    "callers/callees card rendered",
-    doc.querySelectorAll("aside .card").length,
-    2,
+    "callers/callees panel rendered",
+    doc.getElementById("relations").innerHTML.includes("CALLED BY"),
   );
 
   // Clicking OPEN IN EDITOR must message the extension host with the node id.
@@ -416,6 +419,93 @@ async function buildPayload() {
     reformatErr = " [" + e.message + "]";
   }
   check("builds from a reformatted template" + reformatErr, reformatOk, true);
+
+  // ---------------- tabs, rail list, tooltip, lineage modal, git view ----------------
+  const fire = (el, type, init) =>
+    el.dispatchEvent(new w2.window.MouseEvent(type, { bubbles: true, ...(init || {}) }));
+
+  // back to the first DOM for these checks
+  global.window = window;
+  global.document = window.document;
+  global.SVGElement = window.SVGElement;
+  const click = (el, init) =>
+    el.dispatchEvent(new window.MouseEvent("click", { bubbles: true, ...(init || {}) }));
+
+  // orphans must be parked in the grid, not flung across the canvas
+  const orphanIds = new Set(
+    payload.nodes.filter((n) => n.fanIn === 0 && n.fanOut === 0).map((n) => n.id),
+  );
+  const orphanLabel = doc.querySelector("text.orphan-label");
+  check("orphans get a labelled parking grid", !!orphanLabel || orphanIds.size === 0, true);
+
+  // tab switching
+  click(doc.querySelector('.tab[data-tab="index"]'));
+  check("INDEX tab activates", doc.getElementById("view-index").classList.contains("on"), true);
+  check("INDEX table fills", doc.querySelectorAll("#indexTable tbody tr").length, payload.nodes.length);
+  const indexSearch = doc.getElementById("indexSearch");
+  indexSearch.value = "trace";
+  indexSearch.dispatchEvent(new window.Event("input", { bubbles: true }));
+  const narrowed = doc.querySelectorAll("#indexTable tbody tr").length;
+  check("INDEX search narrows", narrowed > 0 && narrowed < payload.nodes.length, true);
+  indexSearch.value = "";
+  indexSearch.dispatchEvent(new window.Event("input", { bubbles: true }));
+
+  click(doc.querySelector('.tab[data-tab="git"]'));
+  check("GIT tab activates", doc.getElementById("view-git").classList.contains("on"), true);
+  check("GIT author cards render", doc.querySelectorAll(".authorcard").length > 0, true);
+  check("GIT rows render", doc.querySelectorAll("#gitTable tbody tr").length > 0, true);
+  check("GIT shows a lead changer", doc.querySelector("#gitTable tbody td.lead").textContent.trim().length > 1, true);
+  check("GIT contribution bars render", doc.querySelectorAll("#gitTable .contrib span").length > 0, true);
+
+  click(doc.querySelector('.tab[data-tab="schema"]'));
+  check("SCHEMA tab returns", doc.getElementById("view-schema").classList.contains("on"), true);
+
+  // rail list: search + select drives the graph selection
+  const railSearch = doc.getElementById("railSearch");
+  railSearch.value = "trace";
+  railSearch.dispatchEvent(new window.Event("input", { bubbles: true }));
+  const railRows = doc.querySelectorAll("#railList .row");
+  check("rail list filters by search", railRows.length > 0 && railRows.length < payload.nodes.length, true);
+  click(railRows[0]);
+  check("rail selection selects in the graph", doc.querySelectorAll("g.node.sel").length, 1);
+
+  // hover tooltip on a graph node
+  const someCircle = doc.querySelector("g.node circle");
+  someCircle.dispatchEvent(new window.MouseEvent("mouseenter", { bubbles: true, clientX: 200, clientY: 200 }));
+  const tip = doc.getElementById("tip");
+  check("hover tooltip appears", tip.classList.contains("on"), true);
+  check("tooltip summarises risk", tip.innerHTML.includes("CALLERS") && tip.innerHTML.includes("RISK"), true);
+  check("tooltip offers a git jump", !!tip.querySelector('[data-act="git"]'), true);
+
+  // tooltip -> git tab, focused on that function
+  click(tip.querySelector('[data-act="git"]'));
+  check("tooltip git button opens the GIT tab", doc.getElementById("view-git").classList.contains("on"), true);
+  check("GIT tab focuses that function", doc.querySelector(".focusbar").textContent.includes("FOCUSED"), true);
+  click(doc.querySelector('.tab[data-tab="schema"]'));
+
+  // lineage modal
+  const lineageBtn = doc.getElementById("lineageBtn");
+  check("dex entry offers VIEW LINEAGE", !!lineageBtn, true);
+  click(lineageBtn);
+  check("lineage modal opens", doc.getElementById("lineage").classList.contains("on"), true);
+  check("lineage renders a chain", doc.querySelectorAll("#lineageBody .chip").length > 0, true);
+  check("lineage marks the focused function", doc.querySelectorAll("#lineageBody .chip.self").length, 1);
+  check("lineage has window chrome", doc.querySelectorAll(".titlebar .light").length, 3);
+  click(doc.getElementById("lineageClose"));
+  check("lineage modal closes", doc.getElementById("lineage").classList.contains("on"), false);
+
+  // sort direction must match the header arrow: descending puts the biggest first
+  click(doc.querySelector('.tab[data-tab="git"]'));
+  const churnCol = [...doc.querySelectorAll("#gitTable tbody tr")].map((tr) =>
+    Number(tr.children[0].textContent),
+  );
+  check("GIT sorts churn descending", churnCol[0] >= churnCol[churnCol.length - 1] && churnCol[0] > 0, true);
+  click(doc.querySelector('.tab[data-tab="index"]'));
+  const riskCol = [...doc.querySelectorAll("#indexTable tbody tr")].map((tr) =>
+    Number(tr.children[0].textContent),
+  );
+  check("INDEX sorts risk descending", riskCol[0] >= riskCol[riskCol.length - 1] && riskCol[0] > 0, true);
+  click(doc.querySelector('.tab[data-tab="schema"]'));
 
   console.log(
     failures ? `\n${failures} FAILURE(S)` : "\nall webview checks passed",
