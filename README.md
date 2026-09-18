@@ -114,36 +114,6 @@ npm run check:risk     # expect: critical 1, high 1, medium 6, low 52
 npm run preview        # opens the graph in a browser
 ```
 
-## Features view
-
-Write commit messages as `type: title` and the **FEATURES** tab shows the codebase
-as features instead of commits:
-
-```
-feature: get users from db
-bug fix: users list crashes on empty page
-refactor(users): split the repository layer
-```
-
-- **Types:** `feature`/`feat`, `bug fix`/`fix`/`bugfix`, `hotfix`, `refactor`,
-  `perf`, `security`, `test`, `docs`, `style`, `chore`. Case-insensitive. `type!:`
-  marks a breaking change.
-- **Grouping:** commits with the same title join one feature. Add a `(scope)` to
-  group different titles under one name - `feature(posts): url slugs` and
-  `feature(posts): save posts` both land in **posts**.
-- **Each feature shows** who worked on it (and how much), the files its commits
-  changed, every commit, and the **functions** it touched. Functions come from the
-  per-function `git log -L` history, so a function is listed only if that feature's
-  commits changed its lines - not merely because it shares a file.
-- **BY PERSON** flips it: pick someone, see the features they worked on.
-- **SHOW IN GRAPH** highlights a feature's functions on the call graph.
-- Untagged commits are counted, not hidden, so you can see how much of the history
-  follows the convention.
-
-**Blast Radius: Write Tagged Commit Message** (also the tag button in the Source
-Control title bar) walks you through type, title and optional scope, then fills the
-commit message box. It never commits.
-
 ## Run it
 
 ```bash

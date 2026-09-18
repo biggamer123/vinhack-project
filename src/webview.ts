@@ -13,8 +13,6 @@ import * as vscode from "vscode";
 import { CallGraph } from "./graph";
 import { RiskService, tierFor } from "./risk";
 import { inferSchemaRelations, scanDatabaseSchemas } from "./schema";
-import { buildFeatures, FeaturesPayload, FunctionRef, RawCommit, readCommits } from "./features";
-import { findRepoRoot } from "./git";
 import { PROTOCOL_VERSION } from "./protocol";
 import { buildStandaloneHtml } from "./standalone";
 
@@ -51,10 +49,6 @@ export class GraphPanel {
   private ready = false;
   private schemaVisible = false;
   private schemaData: SchemaPayload | null = null;
-  /** Raw commit log, read once per request - rebuilding features from it is cheap. */
-  private featureCommits: RawCommit[] | null = null;
-  private featuresRequested = false;
-  private featuresError: string | undefined;
 
   /** Function the user clicked in a CodeLens, to select once the page is up. */
   focusId: string | undefined;
@@ -124,29 +118,7 @@ export class GraphPanel {
     }
     if (msg.type === "schema") {
       void this.showSchemaView();
-      return;
     }
-    if (msg.type === "features") {
-      void this.loadFeatures(!!(msg as { force?: boolean }).force);
-    }
-  }
-
-  /**
-   * Read the commit log for the features view. The log is cached; which
-   * functions each feature touched is recomputed on every update, so features
-   * fill in as per-function git history finishes loading in the background.
-   */
-  private async loadFeatures(force: boolean): Promise<void> {
-    if (!this.ready) {
-      return;
-    }
-    this.featuresRequested = true;
-    if (force || !this.featureCommits) {
-      const read = await readFeatureCommits();
-      this.featureCommits = read.commits;
-      this.featuresError = read.error;
-    }
-    this.update();
   }
 
   /**
@@ -195,9 +167,6 @@ export class GraphPanel {
       version: this.context.extension?.packageJSON?.version ?? "dev",
       viewMode: this.schemaVisible ? "schema" : "graph",
       schema: this.schemaData,
-      features: this.featuresRequested
-        ? featuresFor(this.graph, this.risk, this.featureCommits || [], this.featuresError)
-        : null,
     });
     this.focusId = undefined; // one-shot: a later refresh should not yank the view back
   }
@@ -241,46 +210,6 @@ export interface SchemaPayload {
 }
 
 /** Run schema detection over the open workspace and shape it for the page. */
-/** Read every commit in the open workspace's repository. */
-export async function readFeatureCommits(): Promise<{ commits: RawCommit[]; error?: string }> {
-  const root = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? "";
-  const repo = root ? await findRepoRoot(root) : undefined;
-  if (!repo) {
-    return { commits: [], error: "This workspace is not a git repository." };
-  }
-  try {
-    return { commits: await readCommits(repo) };
-  } catch (err) {
-    return { commits: [], error: String(err) };
-  }
-}
-
-/** Group commits into features, matching functions via their line history. */
-export function featuresFor(
-  graph: CallGraph,
-  risk: RiskService,
-  commits: RawCommit[],
-  error?: string,
-): FeaturesPayload {
-  const refs: FunctionRef[] = graph.allNodes().map((node) => {
-    const info = risk.riskFor(node);
-    return {
-      id: node.id,
-      name: node.name,
-      file: vscode.workspace.asRelativePath(node.file),
-      startLine: node.startLine,
-      score: info.score,
-      tier: tierFor(info.score),
-      commitHashes: info.commits.map((c) => c.hash),
-    };
-  });
-  const payload = buildFeatures(commits, refs);
-  if (error) {
-    payload.error = error;
-  }
-  return payload;
-}
-
 export async function collectSchemas(): Promise<SchemaPayload> {
   const root = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? "";
   try {
@@ -382,10 +311,6 @@ export async function openInBrowser(
   const payload = {
     ...graphPayload,
     schema: await collectSchemas(),
-    features: await (async () => {
-      const read = await readFeatureCommits();
-      return featuresFor(graph, risk, read.commits, read.error);
-    })(),
     protocol: PROTOCOL_VERSION,
     version: context.extension?.packageJSON?.version ?? "dev",
   };

@@ -2,7 +2,7 @@
   "name": "blast-radius",
   "displayName": "Blast Radius",
   "description": "Call-graph aware risk visualization for your codebase.",
-  "version": "0.4.0",
+  "version": "0.3.1",
   "publisher": "blastradius",
   "private": true,
   "engines": {
@@ -50,11 +50,6 @@
       {
         "command": "blastradius.showSchemas",
         "title": "Blast Radius: Show Database Schemas"
-      },
-      {
-        "command": "blastradius.tagCommit",
-        "title": "Blast Radius: Write Tagged Commit Message",
-        "icon": "$(tag)"
       }
     ],
     "configuration": {
@@ -71,15 +66,6 @@
           "description": "Maximum number of functions to run `git log -L` against. Raise for full coverage on large repos, lower if indexing feels slow."
         }
       }
-    },
-    "menus": {
-      "scm/title": [
-        {
-          "command": "blastradius.tagCommit",
-          "group": "navigation",
-          "when": "scmProvider == git"
-        }
-      ]
     }
   },
   "scripts": {
@@ -92,9 +78,7 @@
     "preview": "node scripts/preview.js demo",
     "package": "npx --yes @vscode/vsce package --allow-missing-repository --baseContentUrl https://local.invalid/blast-radius --baseImagesUrl https://local.invalid/blast-radius",
     "setup": "npm install && npm run compile && npm run setup:demo",
-    "setup:demo": "node scripts/setup-demo.js",
-    "check:features": "node scripts/check-features.js",
-    "test": "node --test test/ && node scripts/check-features.js && node scripts/check-webview.js demo"
+    "setup:demo": "node scripts/setup-demo.js"
   },
   "devDependencies": {
     "@types/node": "^20.11.0",
