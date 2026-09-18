@@ -1,5 +1,5 @@
 /**
- * Blast Radius — in-memory call graph.
+ * Blast Radius - in-memory call graph.
  *
  * Stage 1 is deliberately 100% deterministic: everything here is derived from
  * tree-sitter parse results, never from an LLM.
@@ -22,7 +22,7 @@ export interface FunctionNode {
    * or variable of the same name when resolving a call, since `{ foo: () => foo(x) }`
    * almost always means the declaration, not itself.
    */
-  kind: 'declaration' | 'binding';
+  kind: "declaration" | "binding";
   /** ids of functions that call this one. */
   callers: Set<string>;
   /** ids of functions this one calls. */
@@ -31,7 +31,7 @@ export interface FunctionNode {
 
 /**
  * A raw, unresolved call site. We keep these per-file so that a single file
- * changing on save only requires re-parsing that file — edges for the whole
+ * changing on save only requires re-parsing that file - edges for the whole
  * workspace are then cheaply recomputed from the full call-site table.
  */
 export interface CallSite {
@@ -93,7 +93,7 @@ export class CallGraph {
       .sort((a, b) => a.startLine - b.startLine);
   }
 
-  /** Replace everything known about one file. Does not rebuild edges — call resolveEdges(). */
+  /** Replace everything known about one file. Does not rebuild edges - call resolveEdges(). */
   setFile(file: string, index: FileIndex): void {
     this.removeFile(file, { keepEdgesStale: true });
 
@@ -154,7 +154,7 @@ export class CallGraph {
       const localIds = this.byFile.get(file);
       for (const site of sites) {
         if (!site.callerId) {
-          continue; // top-level call — no enclosing function to attribute it to
+          continue; // top-level call - no enclosing function to attribute it to
         }
         const caller = this.nodes.get(site.callerId);
         if (!caller) {
@@ -171,14 +171,19 @@ export class CallGraph {
     }
   }
 
-  private resolveCallee(name: string, localIds: Set<string> | undefined): string | undefined {
+  private resolveCallee(
+    name: string,
+    localIds: Set<string> | undefined,
+  ): string | undefined {
     const candidates = this.byName.get(name);
     if (!candidates || candidates.size === 0) {
       return undefined;
     }
     if (localIds) {
       const local = [...candidates].filter((id) => localIds.has(id));
-      const declared = local.find((id) => this.nodes.get(id)?.kind === 'declaration');
+      const declared = local.find(
+        (id) => this.nodes.get(id)?.kind === "declaration",
+      );
       if (declared) {
         return declared;
       }
@@ -187,7 +192,9 @@ export class CallGraph {
       }
     }
     const all = [...candidates];
-    const declaredAnywhere = all.filter((id) => this.nodes.get(id)?.kind === 'declaration').sort()[0];
+    const declaredAnywhere = all
+      .filter((id) => this.nodes.get(id)?.kind === "declaration")
+      .sort()[0];
     return declaredAnywhere || all.sort()[0];
   }
 

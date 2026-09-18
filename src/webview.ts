@@ -1,17 +1,17 @@
 /**
- * Blast Radius — Stage 3: the full call graph as a Pokedex-styled webview.
+ * Blast Radius - Stage 3: the full call graph as a Pokedex-styled webview.
  *
  * The page itself lives in media/graph.html (inline <style> + <script>, D3 from
  * cdnjs, no build step). Keeping it in its own file rather than a TypeScript
  * template literal avoids escaping every ${} the D3 code needs.
  */
-import * as fs from 'fs';
-import * as os from 'os';
-import * as path from 'path';
-import * as vscode from 'vscode';
-import { CallGraph } from './graph';
-import { RiskService, tierFor } from './risk';
-import { buildStandaloneHtml } from './standalone';
+import * as fs from "fs";
+import * as os from "os";
+import * as path from "path";
+import * as vscode from "vscode";
+import { CallGraph } from "./graph";
+import { RiskService, tierFor } from "./risk";
+import { buildStandaloneHtml } from "./standalone";
 
 interface WireNode {
   id: string;
@@ -43,7 +43,7 @@ export class GraphPanel {
     context: vscode.ExtensionContext,
     graph: CallGraph,
     risk: RiskService,
-    focusId?: string
+    focusId?: string,
   ): GraphPanel {
     if (GraphPanel.current) {
       GraphPanel.current.panel.reveal(vscode.ViewColumn.Beside, true);
@@ -52,10 +52,10 @@ export class GraphPanel {
       return GraphPanel.current;
     }
     const panel = vscode.window.createWebviewPanel(
-      'blastradius.graph',
-      'Blast Radius',
+      "blastradius.graph",
+      "Blast Radius",
       vscode.ViewColumn.Beside,
-      { enableScripts: true, retainContextWhenHidden: true }
+      { enableScripts: true, retainContextWhenHidden: true },
     );
     GraphPanel.current = new GraphPanel(panel, context, graph, risk);
     GraphPanel.current.focusId = focusId;
@@ -71,7 +71,7 @@ export class GraphPanel {
     panel: vscode.WebviewPanel,
     private readonly context: vscode.ExtensionContext,
     private readonly graph: CallGraph,
-    private readonly risk: RiskService
+    private readonly risk: RiskService,
   ) {
     this.panel = panel;
     this.panel.webview.html = this.html();
@@ -79,22 +79,22 @@ export class GraphPanel {
     this.panel.webview.onDidReceiveMessage(
       (msg) => this.onMessage(msg),
       undefined,
-      this.disposables
+      this.disposables,
     );
     this.panel.onDidDispose(() => this.dispose(), undefined, this.disposables);
   }
 
   private onMessage(msg: { type: string; id?: string }): void {
-    if (msg.type === 'ready') {
+    if (msg.type === "ready") {
       this.ready = true;
       this.update();
       return;
     }
-    if (msg.type === 'reveal' && msg.id) {
+    if (msg.type === "reveal" && msg.id) {
       this.reveal(msg.id);
       return;
     }
-    if (msg.type === 'browser') {
+    if (msg.type === "browser") {
       void openInBrowser(this.context, this.graph, this.risk);
     }
   }
@@ -105,7 +105,9 @@ export class GraphPanel {
     if (!node) {
       return;
     }
-    const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(node.file));
+    const doc = await vscode.workspace.openTextDocument(
+      vscode.Uri.file(node.file),
+    );
     const editor = await vscode.window.showTextDocument(doc, {
       viewColumn: vscode.ViewColumn.One,
       preserveFocus: false,
@@ -126,14 +128,14 @@ export class GraphPanel {
   }
 
   private html(): string {
-    const file = path.join(this.context.extensionPath, 'media', 'graph.html');
+    const file = path.join(this.context.extensionPath, "media", "graph.html");
     const nonce = Array.from({ length: 24 }, () =>
-      'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'.charAt(
-        Math.floor(Math.random() * 62)
-      )
-    ).join('');
+      "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789".charAt(
+        Math.floor(Math.random() * 62),
+      ),
+    ).join("");
     return fs
-      .readFileSync(file, 'utf8')
+      .readFileSync(file, "utf8")
       .replace(/\{\{nonce\}\}/g, nonce)
       .replace(/\{\{cspSource\}\}/g, this.panel.webview.cspSource);
   }
@@ -151,8 +153,13 @@ export class GraphPanel {
 /** Build the message payload the page consumes. Shared by the panel and the browser export. */
 export function serializeGraph(
   graph: CallGraph,
-  risk: RiskService
-): { type: 'graph'; nodes: WireNode[]; edges: { from: string; to: string }[]; summary: string } {
+  risk: RiskService,
+): {
+  type: "graph";
+  nodes: WireNode[];
+  edges: { from: string; to: string }[];
+  summary: string;
+} {
   const nodes: WireNode[] = [];
   const edges: { from: string; to: string }[] = [];
 
@@ -181,36 +188,47 @@ export function serializeGraph(
   }
 
   nodes.sort((a, b) => b.score - a.score);
-  const coverage = risk.hasRealCoverage ? risk.coverageSource : 'proxy coverage (no lcov.info)';
+  const coverage = risk.hasRealCoverage
+    ? risk.coverageSource
+    : "proxy coverage (no lcov.info)";
   const summary =
     `${nodes.length} functions · ${edges.length} edges · ${coverage}` +
-    (risk.gitAvailable ? '' : ' · no git history');
+    (risk.gitAvailable ? "" : " · no git history");
 
-  return { type: 'graph', nodes, edges, summary };
+  return { type: "graph", nodes, edges, summary };
 }
 
 /**
  * Write a self-contained snapshot of the graph to a temp file and open it in the
- * system browser — the same page, with room to breathe on a full screen.
+ * system browser - the same page, with room to breathe on a full screen.
  * It is a snapshot: the extension cannot push updates into a browser tab, and
  * "open in editor" is inert there, so the page hides that button in this mode.
  */
 export async function openInBrowser(
   context: vscode.ExtensionContext,
   graph: CallGraph,
-  risk: RiskService
+  risk: RiskService,
 ): Promise<void> {
   const payload = serializeGraph(graph, risk);
   if (payload.nodes.length === 0) {
-    vscode.window.showWarningMessage('Blast Radius: nothing indexed yet, so there is no graph to open.');
+    vscode.window.showWarningMessage(
+      "Blast Radius: nothing indexed yet, so there is no graph to open.",
+    );
     return;
   }
 
-  const template = fs.readFileSync(path.join(context.extensionPath, 'media', 'graph.html'), 'utf8');
-  const html = buildStandaloneHtml(template, payload, new Date().toLocaleString());
+  const template = fs.readFileSync(
+    path.join(context.extensionPath, "media", "graph.html"),
+    "utf8",
+  );
+  const html = buildStandaloneHtml(
+    template,
+    payload,
+    new Date().toLocaleString(),
+  );
 
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'blast-radius-'));
-  const file = path.join(dir, 'blast-radius.html');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "blast-radius-"));
+  const file = path.join(dir, "blast-radius.html");
   fs.writeFileSync(file, html);
   await vscode.env.openExternal(vscode.Uri.file(file));
 }

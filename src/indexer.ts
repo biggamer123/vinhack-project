@@ -1,5 +1,5 @@
 /**
- * Blast Radius — tree-sitter based extraction of named functions and call sites.
+ * Blast Radius - tree-sitter based extraction of named functions and call sites.
  *
  * Two passes over one parse tree:
  *   1. named function declarations/expressions  -> FunctionNode[]
@@ -8,32 +8,32 @@
  * Anonymous callbacks (`arr.map(x => ...)`) are skipped for now: without a name
  * there is nothing to key the graph on.
  */
-import * as path from 'path';
-import Parser from 'web-tree-sitter';
-import { CallSite, FileIndex, FunctionNode } from './graph';
+import * as path from "path";
+import Parser from "web-tree-sitter";
+import { CallSite, FileIndex, FunctionNode } from "./graph";
 
 /** One grammar per dialect: JSX and type annotations need different parsers. */
-type Dialect = 'javascript' | 'typescript' | 'tsx';
+type Dialect = "javascript" | "typescript" | "tsx";
 
 const GRAMMAR_FILE: Record<Dialect, string> = {
-  javascript: 'tree-sitter-javascript.wasm',
-  typescript: 'tree-sitter-typescript.wasm',
-  tsx: 'tree-sitter-tsx.wasm',
+  javascript: "tree-sitter-javascript.wasm",
+  typescript: "tree-sitter-typescript.wasm",
+  tsx: "tree-sitter-tsx.wasm",
 };
 
 const EXT_DIALECT: Record<string, Dialect> = {
-  '.js': 'javascript',
-  '.jsx': 'javascript', // the JS grammar handles JSX
-  '.mjs': 'javascript',
-  '.cjs': 'javascript',
-  '.ts': 'typescript',
-  '.mts': 'typescript',
-  '.cts': 'typescript',
-  '.tsx': 'tsx',
+  ".js": "javascript",
+  ".jsx": "javascript", // the JS grammar handles JSX
+  ".mjs": "javascript",
+  ".cjs": "javascript",
+  ".ts": "typescript",
+  ".mts": "typescript",
+  ".cts": "typescript",
+  ".tsx": "tsx",
 };
 
 const parsers = new Map<Dialect, Parser>();
-let parsersDir = '';
+let parsersDir = "";
 
 /** The dialect we would parse this file as, or undefined if unsupported. */
 export function dialectFor(file: string): Dialect | undefined {
@@ -45,7 +45,7 @@ export async function initParser(extensionPath: string): Promise<void> {
   if (parsers.size > 0) {
     return;
   }
-  parsersDir = path.join(extensionPath, 'parsers');
+  parsersDir = path.join(extensionPath, "parsers");
   await Parser.init({
     locateFile(fileName: string) {
       return path.join(parsersDir, fileName);
@@ -54,18 +54,25 @@ export async function initParser(extensionPath: string): Promise<void> {
 
   for (const dialect of Object.keys(GRAMMAR_FILE) as Dialect[]) {
     try {
-      const language = await Parser.Language.load(path.join(parsersDir, GRAMMAR_FILE[dialect]));
+      const language = await Parser.Language.load(
+        path.join(parsersDir, GRAMMAR_FILE[dialect]),
+      );
       const p = new Parser();
       p.setLanguage(language);
       parsers.set(dialect, p);
     } catch (err) {
       // A missing grammar disables that dialect but must not break the others.
-      console.error(`[blast-radius] could not load the ${dialect} grammar:`, err);
+      console.error(
+        `[blast-radius] could not load the ${dialect} grammar:`,
+        err,
+      );
     }
   }
 
   if (parsers.size === 0) {
-    throw new Error('no tree-sitter grammars could be loaded from ' + parsersDir);
+    throw new Error(
+      "no tree-sitter grammars could be loaded from " + parsersDir,
+    );
   }
 }
 
@@ -79,26 +86,26 @@ export function loadedDialects(): string[] {
 
 /** Node types that introduce a function body. */
 const FUNCTION_TYPES = new Set([
-  'function_declaration',
-  'function_expression',
-  'generator_function',
-  'generator_function_declaration',
-  'arrow_function',
-  'method_definition',
+  "function_declaration",
+  "function_expression",
+  "generator_function",
+  "generator_function_declaration",
+  "arrow_function",
+  "method_definition",
   // TypeScript
-  'function_signature',
-  'method_signature',
-  'abstract_method_signature',
+  "function_signature",
+  "method_signature",
+  "abstract_method_signature",
 ]);
 
 /** Function forms that carry their own name, as opposed to being assigned one. */
 const DECLARATION_TYPES = new Set([
-  'function_declaration',
-  'generator_function_declaration',
-  'method_definition',
-  'function_signature',
-  'method_signature',
-  'abstract_method_signature',
+  "function_declaration",
+  "generator_function_declaration",
+  "method_definition",
+  "function_signature",
+  "method_signature",
+  "abstract_method_signature",
 ]);
 
 /**
@@ -107,7 +114,7 @@ const DECLARATION_TYPES = new Set([
  */
 function nameForFunction(node: Parser.SyntaxNode): string | undefined {
   // function foo() {} / class method foo() {}
-  const own = node.childForFieldName('name');
+  const own = node.childForFieldName("name");
   if (own && own.text) {
     return own.text;
   }
@@ -119,26 +126,29 @@ function nameForFunction(node: Parser.SyntaxNode): string | undefined {
 
   switch (parent.type) {
     // const foo = () => {} / let foo = function () {}
-    case 'variable_declarator':
-      return parent.childForFieldName('name')?.text || undefined;
+    case "variable_declarator":
+      return parent.childForFieldName("name")?.text || undefined;
     // foo = function () {} / module.exports.foo = () => {}
-    case 'assignment_expression': {
-      const left = parent.childForFieldName('left');
+    case "assignment_expression": {
+      const left = parent.childForFieldName("left");
       if (!left) {
         return undefined;
       }
-      if (left.type === 'member_expression') {
-        return left.childForFieldName('property')?.text || undefined;
+      if (left.type === "member_expression") {
+        return left.childForFieldName("property")?.text || undefined;
       }
       return left.text || undefined;
     }
     // { foo: function () {} }
-    case 'pair':
-      return parent.childForFieldName('key')?.text?.replace(/['"`]/g, '') || undefined;
+    case "pair":
+      return (
+        parent.childForFieldName("key")?.text?.replace(/['"`]/g, "") ||
+        undefined
+      );
     // class field: foo = () => {}
-    case 'field_definition':
-    case 'public_field_definition':
-      return parent.childForFieldName('property')?.text || undefined;
+    case "field_definition":
+    case "public_field_definition":
+      return parent.childForFieldName("property")?.text || undefined;
     default:
       return undefined;
   }
@@ -146,25 +156,25 @@ function nameForFunction(node: Parser.SyntaxNode): string | undefined {
 
 /** Callee name as written: `foo()` -> foo, `a.b.foo()` -> foo. */
 function calleeName(call: Parser.SyntaxNode): string | undefined {
-  const fn = call.childForFieldName('function');
+  const fn = call.childForFieldName("function");
   if (!fn) {
     return undefined;
   }
-  if (fn.type === 'identifier') {
+  if (fn.type === "identifier") {
     return fn.text;
   }
-  if (fn.type === 'member_expression') {
-    return fn.childForFieldName('property')?.text || undefined;
+  if (fn.type === "member_expression") {
+    return fn.childForFieldName("property")?.text || undefined;
   }
-  return undefined; // IIFE, computed dispatch, etc. — not resolvable statically
+  return undefined; // IIFE, computed dispatch, etc. - not resolvable statically
 }
 
 function argCount(call: Parser.SyntaxNode): number {
-  const args = call.childForFieldName('arguments');
+  const args = call.childForFieldName("arguments");
   if (!args) {
     return 0;
   }
-  return args.namedChildren.filter((c) => c.type !== 'comment').length;
+  return args.namedChildren.filter((c) => c.type !== "comment").length;
 }
 
 /**
@@ -211,7 +221,7 @@ export function indexSource(file: string, source: string): FileIndex {
             id,
             file,
             name,
-            kind: DECLARATION_TYPES.has(node.type) ? 'declaration' : 'binding',
+            kind: DECLARATION_TYPES.has(node.type) ? "declaration" : "binding",
             startLine: node.startPosition.row,
             endLine: node.endPosition.row,
             callers: new Set<string>(),
@@ -220,7 +230,7 @@ export function indexSource(file: string, source: string): FileIndex {
           stack.push(id);
           pushed = true;
         }
-      } else if (node.type === 'call_expression') {
+      } else if (node.type === "call_expression") {
         const callee = calleeName(node);
         if (callee) {
           callSites.push({

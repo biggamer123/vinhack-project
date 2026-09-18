@@ -1,421 +1,906 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-<meta charset="utf-8" />
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src {{cspSource}} data:; style-src {{cspSource}} 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; script-src 'nonce-{{nonce}}' https://cdnjs.cloudflare.com;" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet" />
-<title>Blast Radius</title>
-<style>
-  :root {
-    --dex-red: #DC0A2D;
-    --cream: #F2E8CF;
-    --gb-green: #9BBC0F;
-    --blue: #3B4CCA;
-    --yellow: #FFCB05;
-    --ink: #17140f;
-    --grass: #78C850;
-    --electric: #F8D030;
-    --fire: #EE8130;
-    --dark: #7C538C;
-  }
-  * { box-sizing: border-box; }
-  html, body { height: 100%; margin: 0; }
-  body {
-    background: var(--dex-red);
-    color: var(--ink);
-    font-family: 'Press Start 2P', ui-monospace, monospace;
-    font-size: 10px;
-    line-height: 1.7;
-    overflow: hidden;
-  }
-  .pixel { box-shadow: 4px 4px 0 #000; border: 3px solid #000; border-radius: 0; }
-
-  /* ---- header ---- */
-  header {
-    display: flex; align-items: center; gap: 12px;
-    padding: 10px 14px;
-    background: var(--dex-red);
-    border-bottom: 4px solid #000;
-  }
-  .lens {
-    width: 30px; height: 30px; border-radius: 50%;
-    background: var(--blue); border: 3px solid #000;
-    box-shadow: inset -3px -3px 0 rgba(0,0,0,.35), 3px 3px 0 #000;
-    flex: none;
-  }
-  .lamp { width: 12px; height: 12px; border-radius: 50%; border: 2px solid #000; flex: none; }
-  h1 { font-size: 13px; margin: 0; color: #fff; text-shadow: 2px 2px 0 #000; letter-spacing: 1px; }
-  .sub { font-size: 8px; color: #ffd9df; margin-top: 4px; }
-  header .spacer { flex: 1; }
-
-  /* ---- toolbar ---- */
-  .toolbar {
-    display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
-    padding: 8px 12px; background: var(--yellow); border-bottom: 4px solid #000;
-  }
-  .btn {
-    font: inherit; font-size: 8px; cursor: pointer;
-    background: var(--cream); color: var(--ink);
-    border: 2px solid #000; border-radius: 0; padding: 6px 8px;
-    box-shadow: 3px 3px 0 #000;
-  }
-  .btn:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 #000; }
-  .btn.on { background: var(--blue); color: #fff; }
-  input.search {
-    font: inherit; font-size: 8px; padding: 6px 8px; width: 170px;
-    background: var(--cream); border: 2px solid #000; box-shadow: 3px 3px 0 #000; color: var(--ink);
-  }
-  input.search::placeholder { color: #8a8271; }
-  .tierchip {
-    font-size: 8px; padding: 5px 7px; border: 2px solid #000; box-shadow: 3px 3px 0 #000;
-    cursor: pointer; color: #17140f; user-select: none;
-  }
-  .tierchip.off { opacity: .35; }
-
-  /* ---- layout ---- */
-  .stage { display: flex; height: calc(100% - 96px); }
-  .canvas-wrap { position: relative; flex: 1; background: var(--cream); border-right: 4px solid #000; overflow: hidden; }
-  svg { width: 100%; height: 100%; display: block; cursor: grab; }
-  svg:active { cursor: grabbing; }
-  .scanlines {
-    position: absolute; inset: 0; pointer-events: none; z-index: 5;
-    background: repeating-linear-gradient(rgba(0,0,0,0.05) 0px, transparent 1px, transparent 2px);
-  }
-  .hud {
-    position: absolute; left: 10px; bottom: 10px; z-index: 6;
-    background: var(--gb-green); padding: 8px 10px; font-size: 8px;
-    border: 3px solid #000; box-shadow: 4px 4px 0 #000; max-width: 62%;
-  }
-
-  /* ---- dex entry side panel ---- */
-  aside {
-    width: 330px; flex: none; background: var(--dex-red);
-    padding: 12px; overflow-y: auto;
-  }
-  .card { background: var(--cream); border: 3px solid #000; box-shadow: 4px 4px 0 #000; padding: 12px; }
-  .card + .card { margin-top: 12px; }
-  .dexno { font-size: 8px; color: #6b6355; }
-  .mon { font-size: 13px; margin: 6px 0 8px; word-break: break-word; line-height: 1.5; }
-  .badge {
-    display: inline-block; font-size: 8px; padding: 4px 8px;
-    border: 2px solid #000; box-shadow: 2px 2px 0 #000; color: #17140f;
-  }
-  .path { font-size: 8px; color: #6b6355; word-break: break-all; margin: 8px 0; line-height: 1.6; }
-  .statrow { display: grid; grid-template-columns: 92px 1fr 40px; gap: 6px; align-items: center; margin: 7px 0; font-size: 8px; }
-  .bar { height: 12px; background: #d9cfb4; border: 2px solid #000; position: relative; }
-  .bar > i { display: block; height: 100%; background: var(--blue); }
-  .val { text-align: right; font-size: 8px; }
-  .formula { font-size: 8px; line-height: 1.8; color: #3a3427; border-top: 2px dashed #000; padding-top: 8px; margin-top: 10px; word-break: break-word; }
-  .prose { font-size: 8px; line-height: 1.9; }
-  .empty { color: #6b6355; font-size: 8px; line-height: 1.9; }
-  .wide { width: 100%; margin-top: 10px; }
-  .flag { background: var(--yellow); border: 2px solid #000; padding: 6px; font-size: 8px; margin-top: 8px; line-height: 1.7; }
-
-  /* ---- graph marks ---- */
-  .link { stroke: #6b6355; stroke-opacity: .5; stroke-width: 1.2; }
-  .link.hot { stroke: var(--dex-red); stroke-opacity: .95; stroke-width: 2.2; }
-  .node circle { stroke: #000; stroke-width: 2; cursor: pointer; }
-  .node.sel circle { stroke-width: 4; }
-  .node text { font-size: 6.5px; pointer-events: none; paint-order: stroke; stroke: var(--cream); stroke-width: 3px; stroke-linejoin: round; }
-  .dim { opacity: .12; }
-  aside::-webkit-scrollbar { width: 10px; }
-  aside::-webkit-scrollbar-thumb { background: var(--yellow); border: 2px solid #000; }
-</style>
-</head>
-<body>
-  <header>
-    <div class="lens"></div>
-    <div class="lamp" style="background:var(--dex-red)"></div>
-    <div class="lamp" style="background:var(--yellow)"></div>
-    <div class="lamp" style="background:var(--grass)"></div>
-    <div style="margin-left:6px">
-      <h1>BLAST RADIUS</h1>
-      <div class="sub" id="subtitle">booting dex…</div>
-    </div>
-    <div class="spacer"></div>
-  </header>
-
-  <div class="toolbar">
-    <input class="search" id="search" placeholder="FIND FUNCTION" />
-    <span class="tierchip" data-tier="low"    style="background:var(--grass)">LOW</span>
-    <span class="tierchip" data-tier="medium" style="background:var(--electric)">MED</span>
-    <span class="tierchip" data-tier="high"   style="background:var(--fire)">HIGH</span>
-    <span class="tierchip" data-tier="critical" style="background:var(--dark);color:#fff">CRIT</span>
-    <button class="btn" id="isolate">HIDE ORPHANS</button>
-    <button class="btn" id="freeze">FREEZE</button>
-    <button class="btn" id="reset">RESET VIEW</button>
-    <button class="btn" id="browser" style="background:var(--blue);color:#fff">OPEN IN BROWSER</button>
-  </div>
-
-  <div class="stage">
-    <div class="canvas-wrap">
-      <svg id="svg"></svg>
-      <div class="scanlines"></div>
-      <div class="hud" id="hud">LOADING…</div>
-    </div>
-    <aside>
-      <div class="card" id="entry">
-        <div class="dexno">DEX ENTRY</div>
-        <div class="mon">NO SELECTION</div>
-        <div class="empty">Click any node to read its entry.<br/>Circle size = number of callers.<br/>Colour = risk tier.</div>
-      </div>
-    </aside>
-  </div>
-
-<script nonce="{{nonce}}" src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
-<script nonce="{{nonce}}">
-(function () {
-  const vscode = acquireVsCodeApi();
-  const TIER_COLOR = { low: '#78C850', medium: '#F8D030', high: '#EE8130', critical: '#7C538C' };
-  const TIER_NAME  = { low: 'GRASS / LOW', medium: 'ELECTRIC / MED', high: 'FIRE / HIGH', critical: 'DARK / CRITICAL' };
-
-  let nodes = [], links = [], selected = null, frozen = false, hideOrphans = false;
-  // True when this page is a file:// snapshot opened in a real browser: there is
-  // no extension host on the other end, so host-dependent buttons are hidden.
-  let standalone = false;
-  let activeTiers = new Set(['low', 'medium', 'high', 'critical']);
-  let query = '';
-
-  const svg = d3.select('#svg');
-  const root = svg.append('g');
-  svg.append('defs').append('marker')
-      .attr('id', 'arrow').attr('viewBox', '0 -5 10 10').attr('refX', 16)
-      .attr('markerWidth', 5).attr('markerHeight', 5).attr('orient', 'auto')
-    .append('path').attr('d', 'M0,-4L9,0L0,4').attr('fill', '#6b6355');
-
-  const linkG = root.append('g');
-  const nodeG = root.append('g');
-
-  const zoom = d3.zoom().scaleExtent([0.15, 6]).on('zoom', (e) => root.attr('transform', e.transform));
-  svg.call(zoom);
-
-  const radius = (n) => 6 + Math.sqrt(n.fanIn) * 3.4;
-
-  let sim = null;
-
-  function render() {
-    const link = linkG.selectAll('line').data(links, (d) => d.source.id + '>' + d.target.id);
-    link.exit().remove();
-    link.enter().append('line').attr('class', 'link').attr('marker-end', 'url(#arrow)');
-
-    const node = nodeG.selectAll('g.node').data(nodes, (d) => d.id);
-    node.exit().remove();
-    const enter = node.enter().append('g').attr('class', 'node');
-    enter.append('circle')
-      .attr('r', radius)
-      .attr('fill', (d) => TIER_COLOR[d.tier])
-      .on('click', (e, d) => { e.stopPropagation(); select(d); });
-    enter.append('text')
-      .attr('dy', (d) => -radius(d) - 4)
-      .attr('text-anchor', 'middle')
-      .text((d) => d.name);
-    enter.call(d3.drag()
-      .on('start', (e, d) => { if (!e.active && sim) sim.alphaTarget(0.25).restart(); d.fx = d.x; d.fy = d.y; })
-      .on('drag', (e, d) => { d.fx = e.x; d.fy = e.y; })
-      .on('end', (e, d) => { if (!e.active && sim) sim.alphaTarget(0); if (!frozen) { d.fx = null; d.fy = null; } }));
-
-    sim = d3.forceSimulation(nodes)
-      .force('link', d3.forceLink(links).id((d) => d.id).distance(70).strength(0.35))
-      .force('charge', d3.forceManyBody().strength(-230))
-      .force('collide', d3.forceCollide().radius((d) => radius(d) + 12))
-      .force('center', d3.forceCenter(
-        document.querySelector('.canvas-wrap').clientWidth / 2,
-        document.querySelector('.canvas-wrap').clientHeight / 2))
-      .on('tick', tick);
-
-    applyFilter();
-  }
-
-  function tick() {
-    linkG.selectAll('line')
-      .attr('x1', (d) => d.source.x).attr('y1', (d) => d.source.y)
-      .attr('x2', (d) => d.target.x).attr('y2', (d) => d.target.y);
-    nodeG.selectAll('g.node').attr('transform', (d) => 'translate(' + d.x + ',' + d.y + ')');
-  }
-
-  function visible(d) {
-    if (!activeTiers.has(d.tier)) return false;
-    if (hideOrphans && d.fanIn === 0 && d.fanOut === 0) return false;
-    if (query && !d.name.toLowerCase().includes(query) && !d.file.toLowerCase().includes(query)) return false;
-    return true;
-  }
-
-  function applyFilter() {
-    const shown = new Set(nodes.filter(visible).map((d) => d.id));
-    nodeG.selectAll('g.node').style('display', (d) => (shown.has(d.id) ? null : 'none'));
-    linkG.selectAll('line').style('display', (d) =>
-      shown.has(d.source.id) && shown.has(d.target.id) ? null : 'none');
-    highlight();
-    updateHud(shown.size);
-  }
-
-  function highlight() {
-    const related = new Set();
-    if (selected) {
-      related.add(selected.id);
-      links.forEach((l) => {
-        if (l.source.id === selected.id) related.add(l.target.id);
-        if (l.target.id === selected.id) related.add(l.source.id);
-      });
-    }
-    nodeG.selectAll('g.node')
-      .classed('sel', (d) => selected && d.id === selected.id)
-      .classed('dim', (d) => selected && !related.has(d.id));
-    linkG.selectAll('line')
-      .classed('hot', (d) => selected && (d.source.id === selected.id || d.target.id === selected.id))
-      .classed('dim', (d) => selected && !(d.source.id === selected.id || d.target.id === selected.id));
-  }
-
-  function updateHud(shownCount) {
-    const counts = { low: 0, medium: 0, high: 0, critical: 0 };
-    nodes.forEach((n) => counts[n.tier]++);
-    document.getElementById('hud').innerHTML =
-      'SHOWING ' + shownCount + ' / ' + nodes.length + ' FUNCTIONS<br/>' +
-      'GRASS ' + counts.low + ' &nbsp; ELECTRIC ' + counts.medium +
-      ' &nbsp; FIRE ' + counts.high + ' &nbsp; DARK ' + counts.critical;
-  }
-
-  function bar(label, value, max, text, color) {
-    const pct = Math.max(0, Math.min(100, (value / max) * 100));
-    return '<div class="statrow"><span>' + label + '</span>' +
-      '<span class="bar"><i style="width:' + pct + '%;background:' + (color || 'var(--blue)') + '"></i></span>' +
-      '<span class="val">' + text + '</span></div>';
-  }
-
-  function esc(s) {
-    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-  }
-
-  function select(d) {
-    selected = d;
-    highlight();
-    const r = d.risk;
-    const covText = r.coverageIsProxy
-      ? (r.coveragePct === 100 ? 'PROXY: NAMED' : 'PROXY: NONE')
-      : (r.coveragePct === null ? 'NO DATA' : r.coveragePct + '%');
-    const covValue = r.coveragePct === null ? 0 : r.coveragePct;
-
-    let html =
-      '<div class="dexno">NO. ' + String(d.index + 1).padStart(3, '0') + '</div>' +
-      '<div class="mon">' + esc(d.name) + '</div>' +
-      '<span class="badge" style="background:' + TIER_COLOR[d.tier] + (d.tier === 'critical' ? ';color:#fff' : '') + '">' +
-        TIER_NAME[d.tier] + '</span>' +
-      '<span class="badge" style="background:var(--cream);margin-left:6px">RISK ' + d.score + '</span>' +
-      '<div class="path">' + esc(d.file) + ':' + (d.startLine + 1) + '</div>' +
-      bar('CALLERS', r.fanIn, Math.max(10, d3.max(nodes, (n) => n.fanIn) || 10), String(r.fanIn), 'var(--dex-red)') +
-      bar('CALLS OUT', d.fanOut, Math.max(10, d3.max(nodes, (n) => n.fanOut) || 10), String(d.fanOut), 'var(--blue)') +
-      bar('COVERAGE', covValue, 100, covText, covValue >= 50 ? 'var(--grass)' : 'var(--fire)') +
-      bar('CHURN 90D', r.churnCount, Math.max(10, d3.max(nodes, (n) => n.risk.churnCount) || 10), String(r.churnCount), 'var(--yellow)') +
-      bar('BUS FACTOR', r.busFactor, 5, String(r.busFactor), r.busFactor <= 1 ? 'var(--fire)' : 'var(--grass)');
-
-    if (r.coverageIsProxy) {
-      html += '<div class="flag">NO lcov.info FOUND — coverage shown is a NAME PROXY, not a measured percentage.</div>';
-    }
-    if (r.busFactor === 1) {
-      html += '<div class="flag">BUS FACTOR 1 — one person has ever touched these lines.</div>';
-    }
-    html += '<div class="formula">score = ' + r.fanIn + '*2 + (100-' + (r.coveragePct === null ? 50 : r.coveragePct) +
-      ')/10 + ' + r.churnCount + ' - ' + (r.busFactor > 1 ? 2 : 0) + ' = ' + d.score + '</div>';
-    if (!standalone) {
-      html += '<button class="btn wide" id="open">OPEN IN EDITOR</button>';
-    }
-
-    const entry = document.getElementById('entry');
-    entry.innerHTML = html;
-    const openBtn = document.getElementById('open');
-    if (openBtn) {
-      openBtn.onclick = () => vscode.postMessage({ type: 'reveal', id: d.id });
-    }
-
-    const callers = links.filter((l) => l.target.id === d.id).map((l) => l.source);
-    const callees = links.filter((l) => l.source.id === d.id).map((l) => l.target);
-    const list = (arr) => arr.length
-      ? arr.map((n) => '<div>&#9642; ' + esc(n.name) + '</div>').join('')
-      : '<div class="empty">none</div>';
-    const extra = document.createElement('div');
-    extra.className = 'card';
-    extra.innerHTML = '<div class="dexno">BLAST RADIUS</div><div class="prose" style="margin-top:6px">' +
-      '<b>CALLED BY (' + callers.length + ')</b>' + list(callers) +
-      '<div style="height:8px"></div><b>CALLS (' + callees.length + ')</b>' + list(callees) + '</div>';
-    entry.parentElement.appendChild(extra);
-    entry.parentElement.querySelectorAll('.card').forEach((c, i) => { if (i > 1) c.remove(); });
-  }
-
-  function centerOn(d) {
-    if (d.x === undefined) return;
-    const wrap = document.querySelector('.canvas-wrap');
-    const t = d3.zoomIdentity
-      .translate(wrap.clientWidth / 2, wrap.clientHeight / 2)
-      .scale(1.6)
-      .translate(-d.x, -d.y);
-    svg.transition().duration(600).call(zoom.transform, t);
-  }
-
-  svg.on('click', () => { selected = null; highlight(); });
-
-  document.getElementById('search').addEventListener('input', (e) => {
-    query = e.target.value.trim().toLowerCase();
-    applyFilter();
-  });
-  document.querySelectorAll('.tierchip').forEach((chip) => {
-    chip.addEventListener('click', () => {
-      const tier = chip.dataset.tier;
-      if (activeTiers.has(tier)) { activeTiers.delete(tier); chip.classList.add('off'); }
-      else { activeTiers.add(tier); chip.classList.remove('off'); }
-      applyFilter();
-    });
-  });
-  document.getElementById('isolate').addEventListener('click', (e) => {
-    hideOrphans = !hideOrphans;
-    e.target.classList.toggle('on', hideOrphans);
-    applyFilter();
-  });
-  document.getElementById('freeze').addEventListener('click', (e) => {
-    frozen = !frozen;
-    e.target.classList.toggle('on', frozen);
-    if (frozen) { nodes.forEach((n) => { n.fx = n.x; n.fy = n.y; }); sim && sim.stop(); }
-    else { nodes.forEach((n) => { n.fx = null; n.fy = null; }); sim && sim.alpha(0.4).restart(); }
-  });
-  document.getElementById('browser').addEventListener('click', () => {
-    vscode.postMessage({ type: 'browser' });
-  });
-  document.getElementById('reset').addEventListener('click', () => {
-    svg.transition().duration(400).call(zoom.transform, d3.zoomIdentity);
-  });
-
-  window.addEventListener('message', (event) => {
-    const msg = event.data;
-    if (msg.type !== 'graph') return;
-    if (msg.standalone) {
-      standalone = true;
-      document.getElementById('browser').style.display = 'none';
-    }
-    const prev = new Map(nodes.map((n) => [n.id, n]));
-    nodes = msg.nodes.map((n, i) => {
-      const old = prev.get(n.id);
-      const merged = Object.assign({}, n, { index: i });
-      if (old) { merged.x = old.x; merged.y = old.y; merged.vx = 0; merged.vy = 0; }
-      return merged;
-    });
-    const byId = new Map(nodes.map((n) => [n.id, n]));
-    links = msg.edges
-      .filter((e) => byId.has(e.from) && byId.has(e.to))
-      .map((e) => ({ source: byId.get(e.from), target: byId.get(e.to) }));
-    document.getElementById('subtitle').textContent =
-      msg.summary.toUpperCase();
-    render();
-    if (msg.focus) {
-      const target = nodes.find((n) => n.id === msg.focus);
-      if (target) {
-        select(target);
-        setTimeout(() => centerOn(target), 600);
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; img-src {{cspSource}} data:; style-src {{cspSource}} 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; script-src 'nonce-{{nonce}}' https://cdnjs.cloudflare.com;"
+    />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap"
+      rel="stylesheet"
+    />
+    <title>Blast Radius</title>
+    <style>
+      :root {
+        --dex-red: #dc0a2d;
+        --cream: #f2e8cf;
+        --gb-green: #9bbc0f;
+        --blue: #3b4cca;
+        --yellow: #ffcb05;
+        --ink: #17140f;
+        --grass: #78c850;
+        --electric: #f8d030;
+        --fire: #ee8130;
+        --dark: #7c538c;
       }
-    }
-  });
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+      }
+      body {
+        background: var(--dex-red);
+        color: var(--ink);
+        font-family: "Press Start 2P", ui-monospace, monospace;
+        font-size: 10px;
+        line-height: 1.7;
+        overflow: hidden;
+      }
+      .pixel {
+        box-shadow: 4px 4px 0 #000;
+        border: 3px solid #000;
+        border-radius: 0;
+      }
 
-  vscode.postMessage({ type: 'ready' });
-})();
-</script>
-</body>
+      /* ---- header ---- */
+      header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 10px 14px;
+        background: var(--dex-red);
+        border-bottom: 4px solid #000;
+      }
+      .lens {
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        background: var(--blue);
+        border: 3px solid #000;
+        box-shadow:
+          inset -3px -3px 0 rgba(0, 0, 0, 0.35),
+          3px 3px 0 #000;
+        flex: none;
+      }
+      .lamp {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        border: 2px solid #000;
+        flex: none;
+      }
+      h1 {
+        font-size: 13px;
+        margin: 0;
+        color: #fff;
+        text-shadow: 2px 2px 0 #000;
+        letter-spacing: 1px;
+      }
+      .sub {
+        font-size: 8px;
+        color: #ffd9df;
+        margin-top: 4px;
+      }
+      header .spacer {
+        flex: 1;
+      }
+
+      /* ---- toolbar ---- */
+      .toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 12px;
+        background: var(--yellow);
+        border-bottom: 4px solid #000;
+      }
+      .btn {
+        font: inherit;
+        font-size: 8px;
+        cursor: pointer;
+        background: var(--cream);
+        color: var(--ink);
+        border: 2px solid #000;
+        border-radius: 0;
+        padding: 6px 8px;
+        box-shadow: 3px 3px 0 #000;
+      }
+      .btn:active {
+        transform: translate(2px, 2px);
+        box-shadow: 1px 1px 0 #000;
+      }
+      .btn.on {
+        background: var(--blue);
+        color: #fff;
+      }
+      input.search {
+        font: inherit;
+        font-size: 8px;
+        padding: 6px 8px;
+        width: 170px;
+        background: var(--cream);
+        border: 2px solid #000;
+        box-shadow: 3px 3px 0 #000;
+        color: var(--ink);
+      }
+      input.search::placeholder {
+        color: #8a8271;
+      }
+      .tierchip {
+        font-size: 8px;
+        padding: 5px 7px;
+        border: 2px solid #000;
+        box-shadow: 3px 3px 0 #000;
+        cursor: pointer;
+        color: #17140f;
+        user-select: none;
+      }
+      .tierchip.off {
+        opacity: 0.35;
+      }
+
+      /* ---- layout ---- */
+      .stage {
+        display: flex;
+        height: calc(100% - 96px);
+      }
+      .canvas-wrap {
+        position: relative;
+        flex: 1;
+        background: var(--cream);
+        border-right: 4px solid #000;
+        overflow: hidden;
+      }
+      svg {
+        width: 100%;
+        height: 100%;
+        display: block;
+        cursor: grab;
+      }
+      svg:active {
+        cursor: grabbing;
+      }
+      .scanlines {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        z-index: 5;
+        background: repeating-linear-gradient(
+          rgba(0, 0, 0, 0.05) 0px,
+          transparent 1px,
+          transparent 2px
+        );
+      }
+      .hud {
+        position: absolute;
+        left: 10px;
+        bottom: 10px;
+        z-index: 6;
+        background: var(--gb-green);
+        padding: 8px 10px;
+        font-size: 8px;
+        border: 3px solid #000;
+        box-shadow: 4px 4px 0 #000;
+        max-width: 62%;
+      }
+
+      /* ---- dex entry side panel ---- */
+      aside {
+        width: 330px;
+        flex: none;
+        background: var(--dex-red);
+        padding: 12px;
+        overflow-y: auto;
+      }
+      .card {
+        background: var(--cream);
+        border: 3px solid #000;
+        box-shadow: 4px 4px 0 #000;
+        padding: 12px;
+      }
+      .card + .card {
+        margin-top: 12px;
+      }
+      .dexno {
+        font-size: 8px;
+        color: #6b6355;
+      }
+      .mon {
+        font-size: 13px;
+        margin: 6px 0 8px;
+        word-break: break-word;
+        line-height: 1.5;
+      }
+      .badge {
+        display: inline-block;
+        font-size: 8px;
+        padding: 4px 8px;
+        border: 2px solid #000;
+        box-shadow: 2px 2px 0 #000;
+        color: #17140f;
+      }
+      .path {
+        font-size: 8px;
+        color: #6b6355;
+        word-break: break-all;
+        margin: 8px 0;
+        line-height: 1.6;
+      }
+      .statrow {
+        display: grid;
+        grid-template-columns: 92px 1fr 40px;
+        gap: 6px;
+        align-items: center;
+        margin: 7px 0;
+        font-size: 8px;
+      }
+      .bar {
+        height: 12px;
+        background: #d9cfb4;
+        border: 2px solid #000;
+        position: relative;
+      }
+      .bar > i {
+        display: block;
+        height: 100%;
+        background: var(--blue);
+      }
+      .val {
+        text-align: right;
+        font-size: 8px;
+      }
+      .formula {
+        font-size: 8px;
+        line-height: 1.8;
+        color: #3a3427;
+        border-top: 2px dashed #000;
+        padding-top: 8px;
+        margin-top: 10px;
+        word-break: break-word;
+      }
+      .prose {
+        font-size: 8px;
+        line-height: 1.9;
+      }
+      .empty {
+        color: #6b6355;
+        font-size: 8px;
+        line-height: 1.9;
+      }
+      .wide {
+        width: 100%;
+        margin-top: 10px;
+      }
+      .flag {
+        background: var(--yellow);
+        border: 2px solid #000;
+        padding: 6px;
+        font-size: 8px;
+        margin-top: 8px;
+        line-height: 1.7;
+      }
+
+      /* ---- graph marks ---- */
+      .link {
+        stroke: #6b6355;
+        stroke-opacity: 0.5;
+        stroke-width: 1.2;
+      }
+      .link.hot {
+        stroke: var(--dex-red);
+        stroke-opacity: 0.95;
+        stroke-width: 2.2;
+      }
+      .node circle {
+        stroke: #000;
+        stroke-width: 2;
+        cursor: pointer;
+      }
+      .node.sel circle {
+        stroke-width: 4;
+      }
+      .node text {
+        font-size: 6.5px;
+        pointer-events: none;
+        paint-order: stroke;
+        stroke: var(--cream);
+        stroke-width: 3px;
+        stroke-linejoin: round;
+      }
+      .dim {
+        opacity: 0.12;
+      }
+      aside::-webkit-scrollbar {
+        width: 10px;
+      }
+      aside::-webkit-scrollbar-thumb {
+        background: var(--yellow);
+        border: 2px solid #000;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="lens"></div>
+      <div class="lamp" style="background: var(--dex-red)"></div>
+      <div class="lamp" style="background: var(--yellow)"></div>
+      <div class="lamp" style="background: var(--grass)"></div>
+      <div style="margin-left: 6px">
+        <h1>BLAST RADIUS</h1>
+        <div class="sub" id="subtitle">booting dex…</div>
+      </div>
+      <div class="spacer"></div>
+    </header>
+
+    <div class="toolbar">
+      <input class="search" id="search" placeholder="FIND FUNCTION" />
+      <span class="tierchip" data-tier="low" style="background: var(--grass)"
+        >LOW</span
+      >
+      <span
+        class="tierchip"
+        data-tier="medium"
+        style="background: var(--electric)"
+        >MED</span
+      >
+      <span class="tierchip" data-tier="high" style="background: var(--fire)"
+        >HIGH</span
+      >
+      <span
+        class="tierchip"
+        data-tier="critical"
+        style="background: var(--dark); color: #fff"
+        >CRIT</span
+      >
+      <button class="btn" id="isolate">HIDE ORPHANS</button>
+      <button class="btn" id="freeze">FREEZE</button>
+      <button class="btn" id="reset">RESET VIEW</button>
+      <button
+        class="btn"
+        id="browser"
+        style="background: var(--blue); color: #fff"
+      >
+        OPEN IN BROWSER
+      </button>
+    </div>
+
+    <div class="stage">
+      <div class="canvas-wrap">
+        <svg id="svg"></svg>
+        <div class="scanlines"></div>
+        <div class="hud" id="hud">LOADING…</div>
+      </div>
+      <aside>
+        <div class="card" id="entry">
+          <div class="dexno">DEX ENTRY</div>
+          <div class="mon">NO SELECTION</div>
+          <div class="empty">
+            Click any node to read its entry.<br />Circle size = number of
+            callers.<br />Colour = risk tier.
+          </div>
+        </div>
+      </aside>
+    </div>
+
+    <script
+      nonce="{{nonce}}"
+      src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"
+    ></script>
+    <script nonce="{{nonce}}">
+      window.addEventListener("error", function (e) {
+        var hud = document.getElementById("hud");
+        var sub = document.getElementById("subtitle");
+        if (sub) {
+          sub.textContent = "PAGE ERROR";
+        }
+        if (hud) {
+          hud.style.background = "#EE8130";
+          hud.innerHTML =
+            "SCRIPT ERROR<br/>" +
+            String(e.message || e.error || "")
+              .replace(/&/g, "&amp;")
+              .replace(/</g, "&lt;");
+        }
+      });
+
+      (function () {
+        // Outside a webview (a file:// snapshot) there is no host API. Falling back
+        // keeps the page alive instead of throwing on line one and rendering nothing.
+        const vscode =
+          typeof acquireVsCodeApi === "function"
+            ? acquireVsCodeApi()
+            : { postMessage: function () {} };
+        const TIER_COLOR = {
+          low: "#78C850",
+          medium: "#F8D030",
+          high: "#EE8130",
+          critical: "#7C538C",
+        };
+        const TIER_NAME = {
+          low: "GRASS / LOW",
+          medium: "ELECTRIC / MED",
+          high: "FIRE / HIGH",
+          critical: "DARK / CRITICAL",
+        };
+
+        let nodes = [],
+          links = [],
+          selected = null,
+          frozen = false,
+          hideOrphans = false;
+        // True when this page is a file:// snapshot opened in a real browser: there is
+        // no extension host on the other end, so host-dependent buttons are hidden.
+        let standalone = false;
+        let activeTiers = new Set(["low", "medium", "high", "critical"]);
+        let query = "";
+
+        const svg = d3.select("#svg");
+        const root = svg.append("g");
+        svg
+          .append("defs")
+          .append("marker")
+          .attr("id", "arrow")
+          .attr("viewBox", "0 -5 10 10")
+          .attr("refX", 16)
+          .attr("markerWidth", 5)
+          .attr("markerHeight", 5)
+          .attr("orient", "auto")
+          .append("path")
+          .attr("d", "M0,-4L9,0L0,4")
+          .attr("fill", "#6b6355");
+
+        const linkG = root.append("g");
+        const nodeG = root.append("g");
+
+        const zoom = d3
+          .zoom()
+          .scaleExtent([0.15, 6])
+          .on("zoom", (e) => root.attr("transform", e.transform));
+        svg.call(zoom);
+
+        const radius = (n) => 6 + Math.sqrt(n.fanIn) * 3.4;
+
+        let sim = null;
+
+        function render() {
+          const link = linkG
+            .selectAll("line")
+            .data(links, (d) => d.source.id + ">" + d.target.id);
+          link.exit().remove();
+          link
+            .enter()
+            .append("line")
+            .attr("class", "link")
+            .attr("marker-end", "url(#arrow)");
+
+          const node = nodeG.selectAll("g.node").data(nodes, (d) => d.id);
+          node.exit().remove();
+          const enter = node.enter().append("g").attr("class", "node");
+          enter
+            .append("circle")
+            .attr("r", radius)
+            .attr("fill", (d) => TIER_COLOR[d.tier])
+            .on("click", (e, d) => {
+              e.stopPropagation();
+              select(d);
+            });
+          enter
+            .append("text")
+            .attr("dy", (d) => -radius(d) - 4)
+            .attr("text-anchor", "middle")
+            .text((d) => d.name);
+          enter.call(
+            d3
+              .drag()
+              .on("start", (e, d) => {
+                if (!e.active && sim) sim.alphaTarget(0.25).restart();
+                d.fx = d.x;
+                d.fy = d.y;
+              })
+              .on("drag", (e, d) => {
+                d.fx = e.x;
+                d.fy = e.y;
+              })
+              .on("end", (e, d) => {
+                if (!e.active && sim) sim.alphaTarget(0);
+                if (!frozen) {
+                  d.fx = null;
+                  d.fy = null;
+                }
+              }),
+          );
+
+          sim = d3
+            .forceSimulation(nodes)
+            .force(
+              "link",
+              d3
+                .forceLink(links)
+                .id((d) => d.id)
+                .distance(70)
+                .strength(0.35),
+            )
+            .force("charge", d3.forceManyBody().strength(-230))
+            .force(
+              "collide",
+              d3.forceCollide().radius((d) => radius(d) + 12),
+            )
+            .force(
+              "center",
+              d3.forceCenter(
+                document.querySelector(".canvas-wrap").clientWidth / 2,
+                document.querySelector(".canvas-wrap").clientHeight / 2,
+              ),
+            )
+            .on("tick", tick);
+
+          applyFilter();
+        }
+
+        function tick() {
+          linkG
+            .selectAll("line")
+            .attr("x1", (d) => d.source.x)
+            .attr("y1", (d) => d.source.y)
+            .attr("x2", (d) => d.target.x)
+            .attr("y2", (d) => d.target.y);
+          nodeG
+            .selectAll("g.node")
+            .attr("transform", (d) => "translate(" + d.x + "," + d.y + ")");
+        }
+
+        function visible(d) {
+          if (!activeTiers.has(d.tier)) return false;
+          if (hideOrphans && d.fanIn === 0 && d.fanOut === 0) return false;
+          if (
+            query &&
+            !d.name.toLowerCase().includes(query) &&
+            !d.file.toLowerCase().includes(query)
+          )
+            return false;
+          return true;
+        }
+
+        function applyFilter() {
+          const shown = new Set(nodes.filter(visible).map((d) => d.id));
+          nodeG
+            .selectAll("g.node")
+            .style("display", (d) => (shown.has(d.id) ? null : "none"));
+          linkG
+            .selectAll("line")
+            .style("display", (d) =>
+              shown.has(d.source.id) && shown.has(d.target.id) ? null : "none",
+            );
+          highlight();
+          updateHud(shown.size);
+        }
+
+        function highlight() {
+          const related = new Set();
+          if (selected) {
+            related.add(selected.id);
+            links.forEach((l) => {
+              if (l.source.id === selected.id) related.add(l.target.id);
+              if (l.target.id === selected.id) related.add(l.source.id);
+            });
+          }
+          nodeG
+            .selectAll("g.node")
+            .classed("sel", (d) => selected && d.id === selected.id)
+            .classed("dim", (d) => selected && !related.has(d.id));
+          linkG
+            .selectAll("line")
+            .classed(
+              "hot",
+              (d) =>
+                selected &&
+                (d.source.id === selected.id || d.target.id === selected.id),
+            )
+            .classed(
+              "dim",
+              (d) =>
+                selected &&
+                !(d.source.id === selected.id || d.target.id === selected.id),
+            );
+        }
+
+        function updateHud(shownCount) {
+          const counts = { low: 0, medium: 0, high: 0, critical: 0 };
+          nodes.forEach((n) => counts[n.tier]++);
+          document.getElementById("hud").innerHTML =
+            "SHOWING " +
+            shownCount +
+            " / " +
+            nodes.length +
+            " FUNCTIONS<br/>" +
+            "GRASS " +
+            counts.low +
+            " &nbsp; ELECTRIC " +
+            counts.medium +
+            " &nbsp; FIRE " +
+            counts.high +
+            " &nbsp; DARK " +
+            counts.critical;
+        }
+
+        function bar(label, value, max, text, color) {
+          const pct = Math.max(0, Math.min(100, (value / max) * 100));
+          return (
+            '<div class="statrow"><span>' +
+            label +
+            "</span>" +
+            '<span class="bar"><i style="width:' +
+            pct +
+            "%;background:" +
+            (color || "var(--blue)") +
+            '"></i></span>' +
+            '<span class="val">' +
+            text +
+            "</span></div>"
+          );
+        }
+
+        function esc(s) {
+          return String(s)
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;");
+        }
+
+        function select(d) {
+          selected = d;
+          highlight();
+          const r = d.risk;
+          const covText = r.coverageIsProxy
+            ? r.coveragePct === 100
+              ? "PROXY: NAMED"
+              : "PROXY: NONE"
+            : r.coveragePct === null
+              ? "NO DATA"
+              : r.coveragePct + "%";
+          const covValue = r.coveragePct === null ? 0 : r.coveragePct;
+
+          let html =
+            '<div class="dexno">NO. ' +
+            String(d.index + 1).padStart(3, "0") +
+            "</div>" +
+            '<div class="mon">' +
+            esc(d.name) +
+            "</div>" +
+            '<span class="badge" style="background:' +
+            TIER_COLOR[d.tier] +
+            (d.tier === "critical" ? ";color:#fff" : "") +
+            '">' +
+            TIER_NAME[d.tier] +
+            "</span>" +
+            '<span class="badge" style="background:var(--cream);margin-left:6px">RISK ' +
+            d.score +
+            "</span>" +
+            '<div class="path">' +
+            esc(d.file) +
+            ":" +
+            (d.startLine + 1) +
+            "</div>" +
+            bar(
+              "CALLERS",
+              r.fanIn,
+              Math.max(10, d3.max(nodes, (n) => n.fanIn) || 10),
+              String(r.fanIn),
+              "var(--dex-red)",
+            ) +
+            bar(
+              "CALLS OUT",
+              d.fanOut,
+              Math.max(10, d3.max(nodes, (n) => n.fanOut) || 10),
+              String(d.fanOut),
+              "var(--blue)",
+            ) +
+            bar(
+              "COVERAGE",
+              covValue,
+              100,
+              covText,
+              covValue >= 50 ? "var(--grass)" : "var(--fire)",
+            ) +
+            bar(
+              "CHURN 90D",
+              r.churnCount,
+              Math.max(10, d3.max(nodes, (n) => n.risk.churnCount) || 10),
+              String(r.churnCount),
+              "var(--yellow)",
+            ) +
+            bar(
+              "BUS FACTOR",
+              r.busFactor,
+              5,
+              String(r.busFactor),
+              r.busFactor <= 1 ? "var(--fire)" : "var(--grass)",
+            );
+
+          if (r.coverageIsProxy) {
+            html +=
+              '<div class="flag">NO lcov.info FOUND - coverage shown is a NAME PROXY, not a measured percentage.</div>';
+          }
+          if (r.busFactor === 1) {
+            html +=
+              '<div class="flag">BUS FACTOR 1 - one person has ever touched these lines.</div>';
+          }
+          html +=
+            '<div class="formula">score = ' +
+            r.fanIn +
+            "*2 + (100-" +
+            (r.coveragePct === null ? 50 : r.coveragePct) +
+            ")/10 + " +
+            r.churnCount +
+            " - " +
+            (r.busFactor > 1 ? 2 : 0) +
+            " = " +
+            d.score +
+            "</div>";
+          if (!standalone) {
+            html +=
+              '<button class="btn wide" id="open">OPEN IN EDITOR</button>';
+          }
+
+          const entry = document.getElementById("entry");
+          entry.innerHTML = html;
+          const openBtn = document.getElementById("open");
+          if (openBtn) {
+            openBtn.onclick = () =>
+              vscode.postMessage({ type: "reveal", id: d.id });
+          }
+
+          const callers = links
+            .filter((l) => l.target.id === d.id)
+            .map((l) => l.source);
+          const callees = links
+            .filter((l) => l.source.id === d.id)
+            .map((l) => l.target);
+          const list = (arr) =>
+            arr.length
+              ? arr
+                  .map((n) => "<div>&#9642; " + esc(n.name) + "</div>")
+                  .join("")
+              : '<div class="empty">none</div>';
+          const extra = document.createElement("div");
+          extra.className = "card";
+          extra.innerHTML =
+            '<div class="dexno">BLAST RADIUS</div><div class="prose" style="margin-top:6px">' +
+            "<b>CALLED BY (" +
+            callers.length +
+            ")</b>" +
+            list(callers) +
+            '<div style="height:8px"></div><b>CALLS (' +
+            callees.length +
+            ")</b>" +
+            list(callees) +
+            "</div>";
+          entry.parentElement.appendChild(extra);
+          entry.parentElement.querySelectorAll(".card").forEach((c, i) => {
+            if (i > 1) c.remove();
+          });
+        }
+
+        function centerOn(d) {
+          if (d.x === undefined) return;
+          const wrap = document.querySelector(".canvas-wrap");
+          const t = d3.zoomIdentity
+            .translate(wrap.clientWidth / 2, wrap.clientHeight / 2)
+            .scale(1.6)
+            .translate(-d.x, -d.y);
+          svg.transition().duration(600).call(zoom.transform, t);
+        }
+
+        svg.on("click", () => {
+          selected = null;
+          highlight();
+        });
+
+        document.getElementById("search").addEventListener("input", (e) => {
+          query = e.target.value.trim().toLowerCase();
+          applyFilter();
+        });
+        document.querySelectorAll(".tierchip").forEach((chip) => {
+          chip.addEventListener("click", () => {
+            const tier = chip.dataset.tier;
+            if (activeTiers.has(tier)) {
+              activeTiers.delete(tier);
+              chip.classList.add("off");
+            } else {
+              activeTiers.add(tier);
+              chip.classList.remove("off");
+            }
+            applyFilter();
+          });
+        });
+        document.getElementById("isolate").addEventListener("click", (e) => {
+          hideOrphans = !hideOrphans;
+          e.target.classList.toggle("on", hideOrphans);
+          applyFilter();
+        });
+        document.getElementById("freeze").addEventListener("click", (e) => {
+          frozen = !frozen;
+          e.target.classList.toggle("on", frozen);
+          if (frozen) {
+            nodes.forEach((n) => {
+              n.fx = n.x;
+              n.fy = n.y;
+            });
+            sim && sim.stop();
+          } else {
+            nodes.forEach((n) => {
+              n.fx = null;
+              n.fy = null;
+            });
+            sim && sim.alpha(0.4).restart();
+          }
+        });
+        document.getElementById("browser").addEventListener("click", () => {
+          vscode.postMessage({ type: "browser" });
+        });
+        document.getElementById("reset").addEventListener("click", () => {
+          svg.transition().duration(400).call(zoom.transform, d3.zoomIdentity);
+        });
+
+        window.addEventListener("message", (event) => {
+          const msg = event.data;
+          if (msg.type !== "graph") return;
+          if (msg.standalone) {
+            standalone = true;
+            document.getElementById("browser").style.display = "none";
+          }
+          const prev = new Map(nodes.map((n) => [n.id, n]));
+          nodes = msg.nodes.map((n, i) => {
+            const old = prev.get(n.id);
+            const merged = Object.assign({}, n, { index: i });
+            if (old) {
+              merged.x = old.x;
+              merged.y = old.y;
+              merged.vx = 0;
+              merged.vy = 0;
+            }
+            return merged;
+          });
+          const byId = new Map(nodes.map((n) => [n.id, n]));
+          links = msg.edges
+            .filter((e) => byId.has(e.from) && byId.has(e.to))
+            .map((e) => ({ source: byId.get(e.from), target: byId.get(e.to) }));
+          document.getElementById("subtitle").textContent =
+            msg.summary.toUpperCase();
+          render();
+          if (msg.focus) {
+            const target = nodes.find((n) => n.id === msg.focus);
+            if (target) {
+              select(target);
+              setTimeout(() => centerOn(target), 600);
+            }
+          }
+        });
+
+        vscode.postMessage({ type: "ready" });
+
+        // If no graph payload shows up, say why rather than leaving a blank canvas.
+        setTimeout(function () {
+          if (nodes.length > 0) {
+            return;
+          }
+          const hud = document.getElementById("hud");
+          hud.style.background = "#FFCB05";
+          hud.innerHTML =
+            "NO GRAPH DATA RECEIVED.<br/>" +
+            (standalone
+              ? "This snapshot was generated empty."
+              : 'If this is a browser tab, re-run "Blast Radius: Open Graph in Browser" ' +
+                "after reloading the VS Code window.");
+          document.getElementById("subtitle").textContent = "NO DATA";
+        }, 4000);
+      })();
+    </script>
+  </body>
 </html>

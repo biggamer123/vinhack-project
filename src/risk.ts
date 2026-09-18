@@ -1,18 +1,18 @@
 /**
- * Blast Radius — risk scoring (Stage 2).
+ * Blast Radius - risk scoring (Stage 2).
  *
  * Combines four deterministic signals per function:
  *   fan-in (graph), coverage (lcov or proxy), churn and bus factor (git).
  * No AI anywhere: every number here is measured, not estimated.
  */
-import * as vscode from 'vscode';
-import { CoverageProvider } from './coverage';
-import { CHURN_WINDOW_DAYS, findRepoRoot, historyForRange } from './git';
-import { CallGraph, FunctionNode } from './graph';
-import { computeScore, RiskTier, tierFor } from './score';
+import * as vscode from "vscode";
+import { CoverageProvider } from "./coverage";
+import { CHURN_WINDOW_DAYS, findRepoRoot, historyForRange } from "./git";
+import { CallGraph, FunctionNode } from "./graph";
+import { computeScore, RiskTier, tierFor } from "./score";
 
-export { computeScore, tierFor, TIER_COLORS } from './score';
-export type { RiskTier } from './score';
+export { computeScore, tierFor, TIER_COLORS } from "./score";
+export type { RiskTier } from "./score";
 
 export interface RiskInfo {
   fanIn: number;
@@ -30,7 +30,6 @@ export interface RiskInfo {
   gitResolved: boolean;
 }
 
-
 export class RiskService {
   private cache = new Map<string, RiskInfo>();
   private repoRoot: string | undefined;
@@ -41,7 +40,9 @@ export class RiskService {
   constructor(private readonly graph: CallGraph) {}
 
   get coverageSource(): string {
-    return this.coverage.hasRealCoverage ? this.coverage.sourceLabel : 'proxy (test/ name match)';
+    return this.coverage.hasRealCoverage
+      ? this.coverage.sourceLabel
+      : "proxy (test/ name match)";
   }
 
   get hasRealCoverage(): boolean {
@@ -75,9 +76,14 @@ export class RiskService {
     return provisional;
   }
 
-  /** Coverage + fan-in only — available instantly, before git has been consulted. */
+  /** Coverage + fan-in only - available instantly, before git has been consulted. */
   private baseRisk(node: FunctionNode): RiskInfo {
-    const { pct, isProxy } = this.coverage.coverageFor(node.file, node.name, node.startLine, node.endLine);
+    const { pct, isProxy } = this.coverage.coverageFor(
+      node.file,
+      node.name,
+      node.startLine,
+      node.endLine,
+    );
     const info: RiskInfo = {
       fanIn: node.callers.size,
       coveragePct: pct,
@@ -111,19 +117,24 @@ export class RiskService {
 
   /**
    * Fetch git history for every node, bounded concurrency, newest-first by
-   * nothing in particular — order does not matter since results are cached.
+   * nothing in particular - order does not matter since results are cached.
    * Fires onDidChangeRisk periodically so the UI fills in progressively.
    */
   async hydrateGit(
     nodes: FunctionNode[],
-    opts: { limit?: number; onProgress?: (done: number, total: number) => void } = {}
+    opts: {
+      limit?: number;
+      onProgress?: (done: number, total: number) => void;
+    } = {},
   ): Promise<void> {
     const root = this.repoRoot;
     if (!root) {
       return;
     }
     const limit = opts.limit ?? Number.POSITIVE_INFINITY;
-    const pending = nodes.filter((n) => !this.cache.get(n.id)?.gitResolved).slice(0, limit);
+    const pending = nodes
+      .filter((n) => !this.cache.get(n.id)?.gitResolved)
+      .slice(0, limit);
     if (pending.length === 0) {
       return;
     }
@@ -135,12 +146,19 @@ export class RiskService {
     const worker = async () => {
       while (cursor < pending.length) {
         const node = pending[cursor++];
-        const history = await historyForRange(root, node.file, node.startLine, node.endLine);
+        const history = await historyForRange(
+          root,
+          node.file,
+          node.startLine,
+          node.endLine,
+        );
         const info = this.riskFor(node);
         info.churnCount = history.churnCount;
         info.busFactor = history.busFactor;
         info.authors = history.authors;
-        info.lastChange = history.lastChange ? history.lastChange.getTime() : null;
+        info.lastChange = history.lastChange
+          ? history.lastChange.getTime()
+          : null;
         info.gitResolved = true;
         info.score = computeScore(info);
         done++;
@@ -151,7 +169,9 @@ export class RiskService {
       }
     };
 
-    await Promise.all(Array.from({ length: Math.min(CONCURRENCY, pending.length) }, worker));
+    await Promise.all(
+      Array.from({ length: Math.min(CONCURRENCY, pending.length) }, worker),
+    );
     opts.onProgress?.(done, pending.length);
     this.onDidChange.fire();
   }
@@ -159,27 +179,32 @@ export class RiskService {
   /** One-line CodeLens summary. */
   summaryLine(node: FunctionNode): string {
     const risk = this.riskFor(node);
-    const parts = [`risk ${risk.score}`, `${risk.fanIn} caller${risk.fanIn === 1 ? '' : 's'}`];
+    const parts = [
+      `risk ${risk.score}`,
+      `${risk.fanIn} caller${risk.fanIn === 1 ? "" : "s"}`,
+    ];
     parts.push(this.coverageLabel(risk));
     if (this.gitAvailable) {
       parts.push(
         risk.gitResolved
-          ? `${risk.churnCount} change${risk.churnCount === 1 ? '' : 's'}/${CHURN_WINDOW_DAYS}d`
-          : 'churn…'
+          ? `${risk.churnCount} change${risk.churnCount === 1 ? "" : "s"}/${CHURN_WINDOW_DAYS}d`
+          : "churn…",
       );
       if (risk.gitResolved) {
         parts.push(`bus factor ${risk.busFactor}`);
       }
     }
-    return parts.join(' · ');
+    return parts.join(" · ");
   }
 
   coverageLabel(risk: RiskInfo): string {
     if (risk.coverageIsProxy) {
-      return risk.coveragePct === 100 ? 'named in tests (proxy)' : 'no test mention (proxy)';
+      return risk.coveragePct === 100
+        ? "named in tests (proxy)"
+        : "no test mention (proxy)";
     }
     if (risk.coveragePct === null) {
-      return 'no coverage data';
+      return "no coverage data";
     }
     return `${risk.coveragePct}% covered`;
   }
@@ -190,48 +215,56 @@ export class RiskService {
     const tier = tierFor(risk.score);
     const md = new vscode.MarkdownString();
     md.supportHtml = false;
-    md.appendMarkdown(`**${node.name}** — risk ${risk.score} (${tier})\n\n`);
+    md.appendMarkdown(`**${node.name}** - risk ${risk.score} (${tier})\n\n`);
     md.appendMarkdown(
-      `- **Blast radius:** ${risk.fanIn} function${risk.fanIn === 1 ? '' : 's'} in this workspace ` +
-        `call it${risk.fanIn === 0 ? ' — changing it affects nothing else here' : ', so a change here reaches all of them'}.\n`
+      `- **Blast radius:** ${risk.fanIn} function${risk.fanIn === 1 ? "" : "s"} in this workspace ` +
+        `call it${risk.fanIn === 0 ? " - changing it affects nothing else here" : ", so a change here reaches all of them"}.\n`,
     );
 
     if (risk.coverageIsProxy) {
       md.appendMarkdown(
-        `- **Coverage:** no \`lcov.info\` found, so this is a **proxy, not real coverage** — ` +
-          `the name \`${node.name}\` ${risk.coveragePct === 100 ? 'does appear' : 'does not appear'} in a test file.\n`
+        `- **Coverage:** no \`lcov.info\` found, so this is a **proxy, not real coverage** - ` +
+          `the name \`${node.name}\` ${risk.coveragePct === 100 ? "does appear" : "does not appear"} in a test file.\n`,
       );
     } else if (risk.coveragePct === null) {
-      md.appendMarkdown(`- **Coverage:** measured from \`${this.coverage.sourceLabel}\`, but this file has no records.\n`);
+      md.appendMarkdown(
+        `- **Coverage:** measured from \`${this.coverage.sourceLabel}\`, but this file has no records.\n`,
+      );
     } else {
       md.appendMarkdown(
-        `- **Coverage:** ${risk.coveragePct}% of its lines are hit, measured from \`${this.coverage.sourceLabel}\`.\n`
+        `- **Coverage:** ${risk.coveragePct}% of its lines are hit, measured from \`${this.coverage.sourceLabel}\`.\n`,
       );
     }
 
     if (!this.gitAvailable) {
-      md.appendMarkdown(`- **History:** not a git repository, so churn and bus factor are unavailable.\n`);
+      md.appendMarkdown(
+        `- **History:** not a git repository, so churn and bus factor are unavailable.\n`,
+      );
     } else if (!risk.gitResolved) {
-      md.appendMarkdown(`- **History:** still reading \`git log\` for these lines…\n`);
+      md.appendMarkdown(
+        `- **History:** still reading \`git log\` for these lines…\n`,
+      );
     } else {
       md.appendMarkdown(
-        `- **Churn:** ${risk.churnCount} commit${risk.churnCount === 1 ? '' : 's'} touched these lines in the ` +
-          `last ${CHURN_WINDOW_DAYS} days.\n`
+        `- **Churn:** ${risk.churnCount} commit${risk.churnCount === 1 ? "" : "s"} touched these lines in the ` +
+          `last ${CHURN_WINDOW_DAYS} days.\n`,
       );
-      const names = risk.authors.map((a) => `${a.name} (${a.commits})`).join(', ');
+      const names = risk.authors
+        .map((a) => `${a.name} (${a.commits})`)
+        .join(", ");
       md.appendMarkdown(
         `- **Bus factor:** ${risk.busFactor} ` +
           (risk.busFactor === 1
-            ? '— only one person has ever touched these lines'
-            : `people have touched these lines${names ? `: ${names}` : ''}`) +
-          `.\n`
+            ? "- only one person has ever touched these lines"
+            : `people have touched these lines${names ? `: ${names}` : ""}`) +
+          `.\n`,
       );
     }
 
     md.appendMarkdown(
       `\n\`score = fanIn*2 + (100 - coverage)/10 + churn - (busFactor > 1 ? 2 : 0)\` ` +
         `= ${risk.fanIn}*2 + (100 - ${risk.coveragePct ?? 50})/10 + ${risk.churnCount} - ` +
-        `${risk.busFactor > 1 ? 2 : 0} = **${risk.score}**`
+        `${risk.busFactor > 1 ? 2 : 0} = **${risk.score}**`,
     );
     return md;
   }

@@ -1,5 +1,5 @@
 /**
- * Blast Radius — coverage input.
+ * Blast Radius - coverage input.
  *
  * Two clearly-separated sources, never conflated:
  *   1. REAL: coverage/lcov.info DA records -> a true hit percentage per line range.
@@ -7,15 +7,19 @@
  *      test directory?". This is a weak signal and is always labelled as such
  *      in the UI (coverageIsProxy).
  */
-import * as path from 'path';
-import * as vscode from 'vscode';
-import { coverageForRange, LcovIndex, parseLcov } from './lcov';
+import * as path from "path";
+import * as vscode from "vscode";
+import { coverageForRange, LcovIndex, parseLcov } from "./lcov";
 
-const LCOV_CANDIDATES = ['coverage/lcov.info', 'lcov.info', 'coverage/lcov-report/lcov.info'];
+const LCOV_CANDIDATES = [
+  "coverage/lcov.info",
+  "lcov.info",
+  "coverage/lcov-report/lcov.info",
+];
 
-const TEST_GLOB = '**/{test,tests,__tests__,spec}/**/*.{js,jsx,mjs,cjs,ts,tsx}';
-const TEST_FILE_GLOB = '**/*.{test,spec}.{js,jsx,mjs,cjs,ts,tsx}';
-const EXCLUDE = '**/{node_modules,dist,build,out,.git,.next,vendor}/**';
+const TEST_GLOB = "**/{test,tests,__tests__,spec}/**/*.{js,jsx,mjs,cjs,ts,tsx}";
+const TEST_FILE_GLOB = "**/*.{test,spec}.{js,jsx,mjs,cjs,ts,tsx}";
+const EXCLUDE = "**/{node_modules,dist,build,out,.git,.next,vendor}/**";
 
 export class CoverageProvider {
   /** absolute file path -> (1-based line -> hit count). Empty when no lcov exists. */
@@ -29,7 +33,9 @@ export class CoverageProvider {
   }
 
   get sourceLabel(): string {
-    return this.lcovPath ? vscode.workspace.asRelativePath(this.lcovPath) : 'test/ name proxy';
+    return this.lcovPath
+      ? vscode.workspace.asRelativePath(this.lcovPath)
+      : "test/ name proxy";
   }
 
   /** (Re)load coverage inputs for a workspace root. */
@@ -42,11 +48,11 @@ export class CoverageProvider {
       const full = path.join(root, candidate);
       try {
         const bytes = await vscode.workspace.fs.readFile(vscode.Uri.file(full));
-        this.parseLcov(root, Buffer.from(bytes).toString('utf8'));
+        this.parseLcov(root, Buffer.from(bytes).toString("utf8"));
         this.lcovPath = full;
         break;
       } catch {
-        // candidate absent — try the next one
+        // candidate absent - try the next one
       }
     }
 
@@ -63,14 +69,17 @@ export class CoverageProvider {
     file: string,
     name: string,
     startLine: number,
-    endLine: number
+    endLine: number,
   ): { pct: number | null; isProxy: boolean } {
     if (this.hasRealCoverage) {
-      return { pct: coverageForRange(this.lcov, file, startLine, endLine), isProxy: false };
+      return {
+        pct: coverageForRange(this.lcov, file, startLine, endLine),
+        isProxy: false,
+      };
     }
 
     // Proxy mode: presence of the name in a test file, nothing more.
-    // 100/0 here means "likely covered" / "no mention" — NOT a measured
+    // 100/0 here means "likely covered" / "no mention" - NOT a measured
     // percentage. Callers must show it differently (coverageIsProxy).
     const mentioned = this.proxyMentions(name).length > 0;
     return { pct: mentioned ? 100 : 0, isProxy: true };
@@ -98,7 +107,7 @@ export class CoverageProvider {
       seen.add(uri.fsPath);
       try {
         const bytes = await vscode.workspace.fs.readFile(uri);
-        const text = Buffer.from(bytes).toString('utf8');
+        const text = Buffer.from(bytes).toString("utf8");
         for (const match of text.matchAll(/\b[A-Za-z_$][\w$]*\b/g)) {
           const name = match[0];
           const list = this.testMentions.get(name);
@@ -111,7 +120,7 @@ export class CoverageProvider {
           }
         }
       } catch {
-        // unreadable test file — ignore
+        // unreadable test file - ignore
       }
     }
   }
