@@ -9,10 +9,12 @@
  */
 
 export interface StandalonePayload {
-  type: 'graph';
+  type: "graph";
   nodes: unknown[];
   edges: unknown[];
   summary: string;
+  /** Everything else the page understands (schema, protocol, version, focus). */
+  [key: string]: unknown;
 }
 
 export function buildStandaloneHtml(

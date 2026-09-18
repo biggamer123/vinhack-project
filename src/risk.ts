@@ -26,8 +26,8 @@ export interface RiskInfo {
   /** Authors by commit count, descending. */
   authors: { name: string; email: string; commits: number }[];
   lastChange: number | null;
-  /** Recent commits touching this function: author email + timestamp, newest first. */
-  commits: { email: string; t: number }[];
+  /** Recent commits touching this function, newest first. */
+  commits: { hash: string; email: string; name: string; t: number; subject: string }[];
   /** False until git history for this function has actually been fetched. */
   gitResolved: boolean;
 }

@@ -15,6 +15,8 @@ export interface RangeCommit {
   email: string;
   name: string;
   date: Date;
+  /** Commit subject line, for the expandable history in the GIT tab. */
+  subject: string;
 }
 
 export interface RangeHistory {
@@ -32,7 +34,9 @@ export const CHURN_WINDOW_DAYS = 90;
 
 /** ASCII unit separator: safe inside author names and emails. */
 const SEP = String.fromCharCode(31);
-const COMMIT_LINE = new RegExp(`^([0-9a-f]{7,40})${SEP}(.*?)${SEP}(.*?)${SEP}(.+)$`);
+const COMMIT_LINE = new RegExp(
+  `^([0-9a-f]{7,40})${SEP}(.*?)${SEP}(.*?)${SEP}([^${SEP}]+)${SEP}(.*)$`
+);
 
 function run(cwd: string, args: string[], timeoutMs = 15000): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -79,7 +83,7 @@ export async function historyForRange(
       'log',
       '--no-color',
       `-L${startLine + 1},${endLine + 1}:${rel}`,
-      `--format=%H${SEP}%ae${SEP}%an${SEP}%aI`,
+      `--format=%H${SEP}%ae${SEP}%an${SEP}%aI${SEP}%s`,
     ]);
   } catch {
     return empty;
@@ -92,12 +96,12 @@ export async function historyForRange(
     if (!match) {
       continue; // diff body lines
     }
-    const [, hash, email, name, iso] = match;
+    const [, hash, email, name, iso, subject] = match;
     if (seen.has(hash)) {
       continue;
     }
     seen.add(hash);
-    commits.push({ hash, email, name, date: new Date(iso) });
+    commits.push({ hash, email, name, date: new Date(iso), subject: subject || "" });
   }
 
   return summarize(commits);

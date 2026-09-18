@@ -16,6 +16,26 @@ const { parseLcov, coverageForRange } = require("../out/lcov");
 const { computeScore, tierFor } = require("../out/score");
 const { findRepoRoot, historyForRange } = require("../out/git");
 const { buildStandaloneHtml } = require("../out/standalone");
+const { PROTOCOL_VERSION } = require("../out/protocol");
+
+// schema.ts talks to the vscode API; stub the few calls it makes so the preview
+// can bake real schema data in exactly like the extension's browser export does.
+const Module = require("module");
+const originalLoad = Module._load;
+Module._load = function (request, parent, isMain) {
+  if (request === "vscode") {
+    return {
+      Uri: { file: (p) => ({ fsPath: p }) },
+      workspace: {
+        findFiles: async () => [],
+        fs: { readFile: async (u) => fs.readFileSync(u.fsPath) },
+        asRelativePath: (p) => path.relative(root, p),
+        workspaceFolders: [{ uri: { fsPath: root } }],
+      },
+    };
+  }
+  return originalLoad(request, parent, isMain);
+};
 
 const root = path.resolve(process.argv[2] || "demo");
 const SKIP = ["node_modules", "dist", "build", "out", ".git", "coverage"];
@@ -61,7 +81,15 @@ function walk(dir, acc = []) {
       busFactor: h ? h.busFactor : 0,
       authors: h ? h.authors : [],
       lastChange: h && h.lastChange ? h.lastChange.getTime() : null,
-      commits: h ? h.commits.slice(0, 50).map((c) => ({ email: c.email, t: c.date.getTime() })) : [],
+      commits: h
+        ? h.commits.slice(0, 50).map((c) => ({
+            hash: c.hash.slice(0, 8),
+            email: c.email,
+            name: c.name,
+            t: c.date.getTime(),
+            subject: c.subject,
+          }))
+        : [],
       gitResolved: !!h,
     };
     const score = computeScore(risk);
@@ -70,6 +98,7 @@ function walk(dir, acc = []) {
       name: n.name,
       file: path.relative(root, n.file),
       startLine: n.startLine,
+      endLine: n.endLine,
       fanIn: n.callers.size,
       fanOut: n.callees.size,
       score,
@@ -89,9 +118,26 @@ function walk(dir, acc = []) {
     path.join(__dirname, "..", "media", "graph.html"),
     "utf8",
   );
+  const { scanDatabaseSchemas, inferSchemaRelations } = require("../out/schema");
+  const scan = await scanDatabaseSchemas(root);
+  const schema = {
+    tables: scan.schemas.map((t) => ({
+      name: t.name,
+      kind: t.kind,
+      source: path.relative(root, t.source),
+      fields: t.fields,
+    })),
+    relations: inferSchemaRelations(scan.schemas),
+    filesScanned: scan.filesScanned,
+    usedFallback: scan.usedFallback,
+    root,
+    error: scan.error,
+  };
+  console.log(`schemas: ${schema.tables.length} tables, ${schema.relations.length} relations`);
+
   const html = buildStandaloneHtml(
     template,
-    { type: "graph", nodes, edges, summary },
+    { type: "graph", nodes, edges, summary, schema, protocol: PROTOCOL_VERSION, version: "preview" },
     new Date().toLocaleString(),
   );
 

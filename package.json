@@ -2,7 +2,7 @@
   "name": "blast-radius",
   "displayName": "Blast Radius",
   "description": "Call-graph aware risk visualization for your codebase.",
-  "version": "0.2.0",
+  "version": "0.3.1",
   "publisher": "blastradius",
   "private": true,
   "engines": {

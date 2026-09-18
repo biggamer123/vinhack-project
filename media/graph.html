@@ -228,6 +228,44 @@
   .schema-host h1, .schema-host h2 { font-size: 12px; }
   .schema-empty { color: #cfd6e4; font-size: 9px; line-height: 2; padding: 24px; }
 
+  /* ---- database viewer ---- */
+  .dbwrap { flex: 1; position: relative; overflow: hidden; background: var(--cream); }
+  .dbcanvas { position: absolute; inset: 0; transform-origin: 0 0; }
+  .dblinks { position: absolute; inset: 0; overflow: visible; pointer-events: none; }
+  .tablecard {
+    position: absolute; width: 230px; background: var(--cream);
+    border: 3px solid #000; box-shadow: 4px 4px 0 #000; user-select: none;
+  }
+  .tablecard.hot { box-shadow: 4px 4px 0 var(--dex-red), 6px 6px 0 #000; }
+  .tablecard .th {
+    background: var(--dex-red); color: #fff; padding: 7px 8px; font-size: 9px;
+    cursor: grab; display: flex; align-items: center; gap: 6px;
+  }
+  .tablecard .th:active { cursor: grabbing; }
+  .tablecard .th .kindtag { margin-left: auto; font-size: 6px; background: var(--yellow); color: #000; border: 2px solid #000; padding: 1px 4px; }
+  .tablecard .fieldrow {
+    display: flex; gap: 6px; padding: 4px 8px; font-size: 7.5px;
+    border-top: 1px solid #ddd2b4; align-items: center;
+  }
+  .tablecard .fieldrow .fname { flex: 1; overflow: hidden; text-overflow: ellipsis; }
+  .tablecard .fieldrow .ftype { color: var(--muted); }
+  .tablecard .fieldrow.pk { background: #fff6cc; }
+  .tablecard .fieldrow .pkmark { color: var(--dex-red); }
+  .tablecard .src { font-size: 6.5px; color: var(--muted); padding: 5px 8px; border-top: 2px dashed #000; word-break: break-all; }
+  .dbhud {
+    position: absolute; right: 12px; bottom: 12px; z-index: 6; background: var(--gb-green);
+    border: 3px solid #000; box-shadow: 4px 4px 0 #000; padding: 8px 10px; font-size: 8px;
+  }
+  .relabel { font-size: 7px; fill: var(--muted); }
+
+  /* ---- expandable git history ---- */
+  tr.histrow > td { background: #fffdf6; padding: 0; }
+  tr.histrow .histbox { padding: 10px 14px; border-left: 6px solid var(--dex-red); }
+  .commitline { display: grid; grid-template-columns: 74px 78px 110px 1fr; gap: 8px; padding: 4px 0; font-size: 7.5px; align-items: start; }
+  .commitline .sha { color: var(--blue); }
+  .commitline .subj { white-space: normal; line-height: 1.6; }
+  .expander { display: inline-block; width: 12px; color: var(--muted); }
+
   /* ---- graph marks ---- */
   .link { stroke: #6b6355; stroke-opacity: .45; stroke-width: 1.2; }
   .link.hot { stroke: var(--dex-red); stroke-opacity: .95; stroke-width: 2.4; }
@@ -283,7 +321,11 @@
 
   <div class="toolbar" id="bar-schema" style="display:none">
     <button class="btn" id="schemaReload" style="background:var(--blue);color:#fff">DETECT SCHEMAS</button>
-    <span class="btn" style="cursor:default">SQL &amp; NoSQL DECLARATIONS FOUND IN THE WORKSPACE</span>
+    <input class="search" id="schemaSearch" placeholder="FIND TABLE" />
+    <button class="btn" id="schemaArrange">AUTO ARRANGE</button>
+    <button class="btn" id="schemaSpread" style="background:var(--yellow)">SPREAD OUT</button>
+    <button class="btn" id="schemaFit">FIT</button>
+    <span class="btn" style="cursor:default">DRAG A TABLE BY ITS HEADER</span>
   </div>
 
   <div class="views">
@@ -327,9 +369,13 @@
     </div>
 
     <div class="view" id="view-schema">
-      <div class="schema-host" id="schemaBody">
-        <div class="schema-empty">Press DETECT SCHEMAS to scan this workspace for SQL and NoSQL declarations.</div>
+      <div class="dbwrap" id="dbwrap">
+        <div class="dbcanvas" id="dbcanvas">
+          <svg class="dblinks" id="dblinks"></svg>
+        </div>
+        <div class="dbhud" id="dbhud">NO SCHEMAS LOADED</div>
       </div>
+      <div class="schema-host" id="schemaBody" style="display:none"></div>
     </div>
 
     <div class="view" id="view-git">
@@ -406,7 +452,7 @@ window.addEventListener('error', function (e) {
   var query = '', tab = 'graph', lineageStack = [], authorColor = new Map();
   // Must match PROTOCOL_VERSION in src/protocol.ts. A payload older than this
   // means the running extension host predates this page - see the banner.
-  var EXPECTED_PROTOCOL = 4;
+  var EXPECTED_PROTOCOL = 5;
 
   var $ = function (id) { return document.getElementById(id); };
   var esc = function (s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); };
@@ -430,57 +476,223 @@ window.addEventListener('error', function (e) {
    * arrives back as ready-made diagram HTML. Ask once on first open; the
    * DETECT SCHEMAS button forces a refresh.
    */
-  var schemaHtml = '', schemaAsked = false;
+  var schemaData = null, schemaAsked = false, dbNodes = [], dbZoom = { k: 1, x: 0, y: 0 };
 
-  /**
-   * Show what the host found. When nothing was found, say what was actually
-   * scanned - "no schemas in 0 files" and "no schemas in 1,400 files" mean
-   * completely different things.
-   */
-  function renderSchemaReply(html, info) {
-    // An older host sends html with no scan info - trust the html in that case.
-    if (html && (!info || info.schemasFound > 0)) {
-      schemaHtml = html;
-      $('schemaBody').innerHTML = html;
-      return;
-    }
-    var note = '<div class="schema-empty">';
-    if (info && info.error) {
-      note += '<b>Schema scan hit an error.</b><br/>' + esc(info.error) + '<br/><br/>';
-    }
-    if (!info) {
-      note += '<b>No schemas returned.</b>';
-    } else if (info.filesScanned === 0) {
-      note += '<b>No files were scanned.</b><br/>Nothing under ' + esc(info.root || 'the workspace') +
-        ' matched .sql, .prisma, .go, .ts, .tsx, .js or .jsx.';
-    } else {
-      note += '<b>No SQL or NoSQL schema declarations found.</b><br/>' +
-        'Scanned ' + info.filesScanned + ' file' + (info.filesScanned === 1 ? '' : 's') +
-        ' under ' + esc(info.root || 'the workspace') + '.<br/><br/>' +
-        'Detection looks for CREATE TABLE statements, Prisma models, and Mongoose schemas.';
-    }
-    if (info && info.usedFallback) {
-      note += '<br/><br/><i>(VS Code\'s file search returned nothing, so the filesystem was walked directly.)</i>';
-    }
-    note += '<br/><br/>Press DETECT SCHEMAS to scan again.</div>';
-    $('schemaBody').innerHTML = note;
-  }
   function requestSchemas(force) {
+    if (!force && (schemaData || schemaAsked)) { return; }
+    schemaAsked = true;
     if (standalone) {
-      if (!schemaHtml) {
-        $('schemaBody').innerHTML =
-          '<div class="schema-empty">Schema detection needs the VS Code extension host, ' +
-          'so it is unavailable in this browser snapshot.<br/>Open the SCHEMA tab inside VS Code.</div>';
-      }
+      // A browser snapshot has no host to ask; schemas are baked in at export
+      // time, so if they are missing here the export predates that.
+      if (!schemaData) { showDbMessage('NO SCHEMA DATA IN THIS SNAPSHOT. Re-run "Open Graph in Browser".'); }
       return;
     }
-    if (!force && (schemaHtml || schemaAsked)) { return; }
-    schemaAsked = true;
-    if (!schemaHtml) {
-      $('schemaBody').innerHTML = '<div class="schema-empty">Scanning the workspace for SQL and NoSQL declarations...</div>';
-    }
+    showDbMessage('SCANNING THE WORKSPACE...');
     vscode.postMessage({ type: 'schema' });
   }
+
+  function showDbMessage(text) {
+    $('dbhud').textContent = text;
+  }
+
+  /* ------------------------------------------------------- database viewer */
+  function renderSchema(data) {
+    schemaData = data;
+    var canvas = $('dbcanvas'), svg = $('dblinks');
+    canvas.querySelectorAll('.tablecard').forEach(function (el) { el.remove(); });
+    svg.innerHTML = '';
+    dbNodes = [];
+
+    if (!data || !data.tables || !data.tables.length) {
+      var why;
+      if (!data) { why = 'NO SCHEMA DATA RETURNED.'; }
+      else if (data.error) { why = 'SCAN ERROR: ' + data.error; }
+      else if (!data.filesScanned) { why = 'NO FILES SCANNED under ' + (data.root || 'the workspace') + '.'; }
+      else {
+        why = 'NO SQL/NoSQL DECLARATIONS IN ' + data.filesScanned + ' FILES.' +
+          ' Looked for CREATE TABLE, Prisma models and Mongoose schemas.';
+      }
+      showDbMessage(why + (data && data.usedFallback ? ' (filesystem fallback used)' : ''));
+      return;
+    }
+
+    // Lay tables out in columns, tallest first, so long tables do not overlap.
+    var sorted = data.tables.slice().sort(function (a, b) { return b.fields.length - a.fields.length; });
+    var colX = 40, colY = 40, colW = 270, maxH = 0, perCol = 0;
+    sorted.forEach(function (t) {
+      var h = 34 + Math.min(t.fields.length, 12) * 17 + 22;
+      if (colY + h > 900 && perCol > 0) { colX += colW; colY = 40; perCol = 0; }
+      dbNodes.push({ table: t, x: colX, y: colY, w: 230, h: h });
+      colY += h + 34;
+      perCol++;
+      maxH = Math.max(maxH, colY);
+    });
+
+    dbNodes.forEach(function (n) { canvas.appendChild(buildCard(n)); });
+    drawRelations();
+    showDbMessage(data.tables.length + ' TABLES  ' + (data.relations || []).length + ' RELATIONS' +
+      '  ' + data.filesScanned + ' FILES SCANNED');
+    fitDb();
+  }
+
+  function buildCard(n) {
+    var t = n.table;
+    var el = document.createElement('div');
+    el.className = 'tablecard';
+    el.dataset.name = t.name;
+    el.style.left = n.x + 'px';
+    el.style.top = n.y + 'px';
+
+    var shown = t.fields.slice(0, 12);
+    el.innerHTML =
+      '<div class="th">' + esc(t.name) +
+        '<span class="kindtag">' + esc(String(t.kind || '').toUpperCase()) + '</span></div>' +
+      shown.map(function (f) {
+        return '<div class="fieldrow' + (f.primaryKey ? ' pk' : '') + '">' +
+          '<span class="pkmark">' + (f.primaryKey ? '&#9679;' : '') + '</span>' +
+          '<span class="fname">' + esc(f.name) + '</span>' +
+          '<span class="ftype">' + esc(f.type) + (f.nullable ? '' : ' !') + '</span></div>';
+      }).join('') +
+      (t.fields.length > shown.length
+        ? '<div class="fieldrow"><span class="fname">+' + (t.fields.length - shown.length) + ' more</span></div>'
+        : '') +
+      '<div class="src">' + esc(t.source) + '</div>';
+
+    // Drag by the header; links follow because they are redrawn every move.
+    var head = el.querySelector('.th');
+    var startX = 0, startY = 0, origX = 0, origY = 0, dragging = false;
+    head.addEventListener('mousedown', function (e) {
+      dragging = true;
+      startX = e.clientX; startY = e.clientY; origX = n.x; origY = n.y;
+      el.classList.add('hot');
+      e.preventDefault();
+    });
+    window.addEventListener('mousemove', function (e) {
+      if (!dragging) { return; }
+      n.x = origX + (e.clientX - startX) / dbZoom.k;
+      n.y = origY + (e.clientY - startY) / dbZoom.k;
+      el.style.left = n.x + 'px';
+      el.style.top = n.y + 'px';
+      drawRelations();
+    });
+    window.addEventListener('mouseup', function () {
+      if (dragging) { dragging = false; el.classList.remove('hot'); }
+    });
+    return el;
+  }
+
+  /** Anchor a link on the facing edge of each card so it stays attached. */
+  function anchors(a, b) {
+    var ac = { x: a.x + a.w / 2, y: a.y + a.h / 2 };
+    var bc = { x: b.x + b.w / 2, y: b.y + b.h / 2 };
+    var from = { x: bc.x > ac.x ? a.x + a.w : a.x, y: ac.y };
+    var to = { x: bc.x > ac.x ? b.x : b.x + b.w, y: bc.y };
+    return { from: from, to: to };
+  }
+
+  function drawRelations() {
+    var svg = $('dblinks');
+    var rels = (schemaData && schemaData.relations) || [];
+    var byName = new Map(dbNodes.map(function (n) { return [n.table.name, n]; }));
+    var parts = ['<defs><marker id="dbarrow" viewBox="0 -5 10 10" refX="9" markerWidth="6" markerHeight="6" orient="auto">' +
+      '<path d="M0,-4L9,0L0,4" fill="#3B4CCA"></path></marker></defs>'];
+
+    rels.forEach(function (r) {
+      var a = byName.get(r.from), b = byName.get(r.to);
+      if (!a || !b) { return; }
+      var p = anchors(a, b);
+      var dx = Math.max(40, Math.abs(p.to.x - p.from.x) / 2);
+      var c1 = (p.to.x > p.from.x ? p.from.x + dx : p.from.x - dx);
+      var c2 = (p.to.x > p.from.x ? p.to.x - dx : p.to.x + dx);
+      parts.push('<path d="M ' + p.from.x + ' ' + p.from.y + ' C ' + c1 + ' ' + p.from.y + ', ' +
+        c2 + ' ' + p.to.y + ', ' + p.to.x + ' ' + p.to.y +
+        '" stroke="#3B4CCA" stroke-width="2" fill="none" marker-end="url(#dbarrow)"></path>');
+      parts.push('<text class="relabel" x="' + ((p.from.x + p.to.x) / 2) + '" y="' +
+        (((p.from.y + p.to.y) / 2) - 5) + '" text-anchor="middle">' + esc(r.label || '') + '</text>');
+    });
+    svg.innerHTML = parts.join('');
+  }
+
+  function applyDbTransform() {
+    $('dbcanvas').style.transform =
+      'translate(' + dbZoom.x + 'px,' + dbZoom.y + 'px) scale(' + dbZoom.k + ')';
+  }
+
+  function fitDb() {
+    if (!dbNodes.length) { return; }
+    var wrap = $('dbwrap');
+    var maxX = Math.max.apply(null, dbNodes.map(function (n) { return n.x + n.w; }));
+    var maxY = Math.max.apply(null, dbNodes.map(function (n) { return n.y + n.h; }));
+    var k = Math.min((wrap.clientWidth - 60) / maxX, (wrap.clientHeight - 60) / maxY, 1);
+    dbZoom = { k: Math.max(0.2, k), x: 20, y: 20 };
+    applyDbTransform();
+  }
+
+  function arrangeDb() {
+    if (schemaData) { renderSchema(schemaData); }
+  }
+
+  /**
+   * Even grid: every table gets the same generous cell, so nothing crowds and
+   * the relation curves have room to be followed by eye. Cell size comes from
+   * the tallest card, so rows line up however uneven the tables are.
+   */
+  function spreadDb() {
+    if (!dbNodes.length) { return; }
+    var wrap = $('dbwrap');
+    var aspect = Math.max(0.5, (wrap.clientWidth || 1200) / (wrap.clientHeight || 800));
+    var cols = Math.max(1, Math.round(Math.sqrt(dbNodes.length * aspect)));
+    var cellW = Math.max.apply(null, dbNodes.map(function (n) { return n.w; })) + 120;
+    var cellH = Math.max.apply(null, dbNodes.map(function (n) { return n.h; })) + 90;
+
+    // Biggest tables first, so the busiest ones land top-left where the eye starts.
+    var ordered = dbNodes.slice().sort(function (a, b) {
+      return b.table.fields.length - a.table.fields.length;
+    });
+
+    ordered.forEach(function (n, i) {
+      n.x = 40 + (i % cols) * cellW;
+      n.y = 40 + Math.floor(i / cols) * cellH;
+      var card = $('dbcanvas').querySelector('.tablecard[data-name="' + cssEscape(n.table.name) + '"]');
+      if (card) {
+        card.style.left = n.x + 'px';
+        card.style.top = n.y + 'px';
+      }
+    });
+
+    drawRelations();
+    fitDb();
+    showDbMessage(dbNodes.length + ' TABLES SPREAD OVER ' + cols + ' COLUMN' + (cols === 1 ? '' : 'S'));
+  }
+
+  /** Table names come from SQL identifiers, but quote them safely anyway. */
+  function cssEscape(name) {
+    return String(name).replace(/["\\]/g, '\\$&');
+  }
+
+  // pan with the background, zoom with the wheel
+  (function () {
+    var wrap = $('dbwrap');
+    var panning = false, px = 0, py = 0, ox = 0, oy = 0;
+    wrap.addEventListener('mousedown', function (e) {
+      if (e.target.closest('.tablecard')) { return; }
+      panning = true; px = e.clientX; py = e.clientY; ox = dbZoom.x; oy = dbZoom.y;
+    });
+    window.addEventListener('mousemove', function (e) {
+      if (!panning) { return; }
+      dbZoom.x = ox + (e.clientX - px);
+      dbZoom.y = oy + (e.clientY - py);
+      applyDbTransform();
+    });
+    window.addEventListener('mouseup', function () { panning = false; });
+    wrap.addEventListener('wheel', function (e) {
+      e.preventDefault();
+      var next = Math.max(0.2, Math.min(2.5, dbZoom.k * (e.deltaY < 0 ? 1.12 : 0.89)));
+      dbZoom.k = next;
+      applyDbTransform();
+    }, { passive: false });
+  })();
+
   document.querySelectorAll('.tab').forEach(function (b) {
     b.addEventListener('click', function () { showTab(b.dataset.tab); });
   });
@@ -1149,19 +1361,67 @@ window.addEventListener('error', function (e) {
       var lead = (r.authors || [])[0];
       return '<tr data-id="' + esc(n.id) + '"' + (gitFocus && gitFocus.id === n.id ? ' class="on"' : '') + '>' +
         '<td>' + r.churnCount + '</td>' +
-        '<td class="name">' + esc(n.name) + '</td>' +
+        '<td class="name"><span class="expander">&#9656;</span>' + esc(n.name) + '</td>' +
         '<td>' + contribBar(r) + '</td>' +
         '<td class="lead">' + (lead ? esc(lead.name) + ' (' + lead.commits + ')' : '--') + '</td>' +
         '<td>' + (r.gitResolved ? r.busFactor : '--') + '</td>' +
         '<td>' + dateText(r.lastChange) + '</td></tr>';
     }).join('');
-    $('gitTable').querySelectorAll('tbody tr').forEach(function (tr) {
+    $('gitTable').querySelectorAll('tbody tr[data-id]').forEach(function (tr) {
       tr.addEventListener('click', function () {
         var n = byId.get(tr.dataset.id);
-        if (n) { gitFocus = n; selected = n; renderGit(); }
+        if (!n) { return; }
+        toggleHistory(tr, n);
       });
     });
   }
+  /**
+   * Expand a row into that function's full commit history - every commit that
+   * touched its line range, not just the 90-day count in the column.
+   */
+  function toggleHistory(tr, n) {
+    var open = tr.nextElementSibling && tr.nextElementSibling.classList.contains('histrow');
+    $('gitTable').querySelectorAll('tr.histrow').forEach(function (row) { row.remove(); });
+    $('gitTable').querySelectorAll('.expander').forEach(function (e) { e.innerHTML = '&#9656;'; });
+    if (open) { return; }
+
+    gitFocus = n;
+    selected = n;
+    var r = n.risk;
+    var commits = (r.commits || []).slice();
+    var body;
+    if (!commits.length) {
+      body = '<div class="empty">' + (r.gitResolved
+        ? 'No commits touch these lines - the file is untracked, or the range is newer than every commit.'
+        : 'Git history has not been read for this function yet.') + '</div>';
+    } else {
+      var cutoff = Date.now() - 90 * 24 * 60 * 60 * 1000;
+      body = '<div style="font-size:8px;margin-bottom:8px">' +
+        commits.length + ' COMMIT' + (commits.length === 1 ? '' : 'S') + ' TOUCHING ' +
+        esc(n.file) + ':' + (n.startLine + 1) + '-' + (n.endLine ? n.endLine + 1 : '') +
+        ' &nbsp;|&nbsp; newest first</div>' +
+        commits.map(function (c) {
+          return '<div class="commitline"' + (c.t < cutoff ? ' style="opacity:.62"' : '') + '>' +
+            '<span class="sha">' + esc(c.hash || '') + '</span>' +
+            '<span>' + dateText(c.t) + '</span>' +
+            '<span>' + esc(c.name || c.email || '') + '</span>' +
+            '<span class="subj">' + esc(c.subject || '(no subject)') + '</span></div>';
+        }).join('') +
+        '<div style="font-size:7px;color:var(--muted);margin-top:8px">' +
+        'Dimmed commits are older than the 90-day churn window.</div>';
+    }
+
+    var row = document.createElement('tr');
+    row.className = 'histrow';
+    var cell = document.createElement('td');
+    cell.colSpan = 6;
+    cell.innerHTML = '<div class="histbox">' + body + '</div>';
+    row.appendChild(cell);
+    tr.parentNode.insertBefore(row, tr.nextSibling);
+    var exp = tr.querySelector('.expander');
+    if (exp) { exp.innerHTML = '&#9662;'; }
+  }
+
   $('gitTable').querySelectorAll('th[data-gsort]').forEach(function (th) {
     th.addEventListener('click', function () {
       var key = th.dataset.gsort;
@@ -1209,6 +1469,28 @@ window.addEventListener('error', function (e) {
   $('reset').addEventListener('click', function () { fitView(); });
   $('browser').addEventListener('click', function () { vscode.postMessage({ type: 'browser' }); });
   $('schemaReload').addEventListener('click', function () { requestSchemas(true); });
+  $('schemaArrange').addEventListener('click', arrangeDb);
+  $('schemaSpread').addEventListener('click', spreadDb);
+  $('schemaFit').addEventListener('click', fitDb);
+  $('schemaSearch').addEventListener('input', function (e) {
+    var q = e.target.value.trim().toLowerCase();
+    var first = null;
+    $('dbcanvas').querySelectorAll('.tablecard').forEach(function (card) {
+      var hit = !q || card.dataset.name.toLowerCase().indexOf(q) !== -1;
+      card.style.opacity = hit ? '1' : '0.18';
+      if (hit && q && !first) { first = card; }
+    });
+    if (first) {
+      // bring the first match into view rather than making the user hunt
+      var node = dbNodes.filter(function (n) { return n.table.name === first.dataset.name; })[0];
+      if (node) {
+        var wrap = $('dbwrap');
+        dbZoom.x = wrap.clientWidth / 2 - (node.x + node.w / 2) * dbZoom.k;
+        dbZoom.y = wrap.clientHeight / 2 - (node.y + node.h / 2) * dbZoom.k;
+        applyDbTransform();
+      }
+    }
+  });
 
   /* ----------------------------------------------------------------- data */
   window.addEventListener('message', function (event) {
@@ -1221,9 +1503,7 @@ window.addEventListener('error', function (e) {
     if (!standalone && (msg.protocol || 0) < EXPECTED_PROTOCOL) {
       $('staleHost').style.display = 'block';
     }
-    if (msg.schemaHtml || msg.schemaInfo) {
-      renderSchemaReply(msg.schemaHtml, msg.schemaInfo);
-    }
+    if (msg.schema) { renderSchema(msg.schema); }
     if (msg.viewMode === 'schema') { showTab('schema'); }
     var prev = new Map(nodes.map(function (n) { return [n.id, n]; }));
     nodes = msg.nodes.map(function (n, i) {

@@ -108,7 +108,15 @@ async function buildPayload() {
       busFactor: h ? h.busFactor : 0,
       authors: h ? h.authors : [],
       lastChange: h && h.lastChange ? h.lastChange.getTime() : null,
-      commits: h ? h.commits.slice(0, 50).map((c) => ({ email: c.email, t: c.date.getTime() })) : [],
+      commits: h
+        ? h.commits.slice(0, 50).map((c) => ({
+            hash: c.hash.slice(0, 8),
+            email: c.email,
+            name: c.name,
+            t: c.date.getTime(),
+            subject: c.subject,
+          }))
+        : [],
       gitResolved: !!h,
     };
     const score = computeScore(risk);
@@ -117,6 +125,7 @@ async function buildPayload() {
       name: n.name,
       file: path.relative(root, n.file),
       startLine: n.startLine,
+      endLine: n.endLine,
       fanIn: n.callers.size,
       fanOut: n.callees.size,
       score,
@@ -508,51 +517,6 @@ async function buildPayload() {
   check("INDEX sorts risk descending", riskCol[0] >= riskCol[riskCol.length - 1] && riskCol[0] > 0, true);
   click(doc.querySelector('.tab[data-tab="graph"]'));
 
-  // ---------------- database schema tab (src/schema.ts feeds this) ----------------
-  const schemaTab = doc.querySelector('.tab[data-tab="schema"]');
-  check("SCHEMA tab exists", !!schemaTab, true);
-  click(schemaTab);
-  check("SCHEMA tab activates", doc.getElementById("view-schema").classList.contains("on"), true);
-  check("SCHEMA tab is never blank", doc.getElementById("schemaBody").textContent.trim().length > 0, true);
-  // This DOM was switched into standalone mode by an earlier check, where schema
-  // detection cannot run - it must say so rather than sit empty.
-  check("SCHEMA tab explains itself in a browser snapshot",
-    doc.getElementById("schemaBody").textContent.includes("VS Code"), true);
-
-  // In a real webview, opening the tab asks the extension host to run detection.
-  const posted4 = [];
-  const dom4 = new JSDOM(html, { runScripts: "outside-only", pretendToBeVisual: true });
-  const w4 = dom4.window;
-  w4.d3 = require("d3");
-  applyDomShims(w4);
-  w4.acquireVsCodeApi = () => ({ postMessage: (m) => posted4.push(m) });
-  global.window = w4;
-  global.document = w4.document;
-  global.SVGElement = w4.SVGElement;
-  w4.eval(script);
-  w4.dispatchEvent(new w4.MessageEvent("message", { data: payload }));
-  await new Promise((r) => setTimeout(r, 300));
-  w4.document.querySelector('.tab[data-tab="schema"]')
-    .dispatchEvent(new w4.MouseEvent("click", { bubbles: true }));
-  check("SCHEMA tab requests detection from the host",
-    posted4.some((m) => m.type === "schema"), true);
-  global.window = window;
-  global.document = window.document;
-  global.SVGElement = window.SVGElement;
-  // and the host's reply (even an empty-workspace one) is rendered
-  window.dispatchEvent(new window.MessageEvent("message", {
-    data: Object.assign({}, payload, {
-      schemaHtml: "<h1>Database Schemas</h1><p>No SQL or NoSQL schema declarations were detected.</p>",
-      viewMode: "schema",
-    }),
-  }));
-  await new Promise((r) => setTimeout(r, 300));
-  check("SCHEMA tab renders the host's reply",
-    doc.getElementById("schemaBody").textContent.includes("No SQL or NoSQL"), true);
-  check("host viewMode:schema focuses the tab",
-    doc.getElementById("view-schema").classList.contains("on"), true);
-  click(doc.querySelector('.tab[data-tab="graph"]'));
-
   // ---------------- orphan shelf must clear the graph ----------------
   const coords = (sel) =>
     [...doc.querySelectorAll(sel)].map((g) => {
@@ -608,42 +572,111 @@ async function buildPayload() {
   global.document = window.document;
   global.SVGElement = window.SVGElement;
 
-  // ---------------- schema empty states must explain themselves ----------------
-  click(doc.querySelector('.tab[data-tab="schema"]'));
-  window.dispatchEvent(new window.MessageEvent("message", {
-    data: Object.assign({}, payload, {
-      protocol: PROTOCOL_VERSION,
-      schemaHtml: "",
-      schemaInfo: { filesScanned: 1400, schemasFound: 0, usedFallback: false, root: "/repo" },
-    }),
-  }));
-  await new Promise((r) => setTimeout(r, 200));
-  const emptyText = doc.getElementById("schemaBody").textContent;
-  check("empty scan reports how many files were read", emptyText.includes("1400"), true);
-  check("empty scan names what it looked for", emptyText.includes("CREATE TABLE"), true);
+  const sampleSchema = {
+    tables: [
+      { name: "users", kind: "sql", source: "db/0001_init.sql", fields: [
+        { name: "id", type: "uuid", nullable: false, primaryKey: true },
+        { name: "email", type: "text", nullable: false, primaryKey: false }] },
+      { name: "machines", kind: "sql", source: "db/0002.sql", fields: [
+        { name: "id", type: "uuid", nullable: false, primaryKey: true },
+        { name: "user_id", type: "uuid", nullable: true, primaryKey: false }] },
+    ],
+    relations: [{ from: "machines", to: "users", label: "user_id" }],
+    filesScanned: 163,
+    usedFallback: false,
+    root: "/repo",
+  };
+
+  // ---------------- database viewer ----------------
+  const schemaTab = doc.querySelector('.tab[data-tab="schema"]');
+  check("SCHEMA tab exists", !!schemaTab, true);
+  click(schemaTab);
+  check("SCHEMA tab activates", doc.getElementById("view-schema").classList.contains("on"), true);
+  check("SCHEMA tab is never blank", doc.getElementById("dbhud").textContent.trim().length > 0, true);
 
   window.dispatchEvent(new window.MessageEvent("message", {
-    data: Object.assign({}, payload, {
-      protocol: PROTOCOL_VERSION,
-      schemaHtml: "",
-      schemaInfo: { filesScanned: 0, schemasFound: 0, usedFallback: true, root: "/repo" },
-    }),
+    data: Object.assign({}, payload, { protocol: PROTOCOL_VERSION, schema: sampleSchema }),
   }));
-  await new Promise((r) => setTimeout(r, 200));
-  const zeroText = doc.getElementById("schemaBody").textContent;
-  check("a zero-file scan says so, not 'no schemas'", zeroText.includes("No files were scanned"), true);
-  check("filesystem fallback is disclosed", zeroText.includes("filesystem was walked"), true);
+  await new Promise((r) => setTimeout(r, 250));
+  check("tables render as cards", doc.querySelectorAll("#dbcanvas .tablecard").length, 2);
+  check("fields are listed", doc.querySelectorAll("#dbcanvas .fieldrow").length >= 4, true);
+  check("primary keys are marked", doc.querySelectorAll("#dbcanvas .fieldrow.pk").length, 2);
+  check("relations are drawn", doc.querySelectorAll("#dblinks path[marker-end]").length, 1);
+  check("viewer reports the scan", doc.getElementById("dbhud").textContent.includes("2 TABLES"), true);
 
+  // dragging a table must move it AND keep the link attached
+  const card = doc.querySelector('#dbcanvas .tablecard[data-name="machines"]');
+  const linkBefore = doc.querySelector("#dblinks path[marker-end]").getAttribute("d");
+  const beforeLeft = card.style.left;
+  card.querySelector(".th").dispatchEvent(
+    new window.MouseEvent("mousedown", { bubbles: true, clientX: 100, clientY: 100 }));
+  window.dispatchEvent(new window.MouseEvent("mousemove", { bubbles: true, clientX: 400, clientY: 260 }));
+  window.dispatchEvent(new window.MouseEvent("mouseup", { bubbles: true }));
+  check("dragging moves the table", card.style.left !== beforeLeft, true);
+  const linkAfter = doc.querySelector("#dblinks path[marker-end]").getAttribute("d");
+  check("relation follows the dragged table", linkAfter !== linkBefore, true);
+
+  // empty states must say what actually happened
+  const dbStates = [
+    [{ tables: [], relations: [], filesScanned: 1400, usedFallback: false, root: "/repo" }, "1400"],
+    [{ tables: [], relations: [], filesScanned: 0, usedFallback: true, root: "/repo" }, "NO FILES SCANNED"],
+    [{ tables: [], relations: [], filesScanned: 12, usedFallback: false, root: "/repo", error: "EACCES" }, "EACCES"],
+  ];
+  for (const [schema, expected] of dbStates) {
+    window.dispatchEvent(new window.MessageEvent("message", {
+      data: Object.assign({}, payload, { protocol: PROTOCOL_VERSION, schema }),
+    }));
+    await new Promise((r) => setTimeout(r, 120));
+    check(`empty viewer explains: ${expected}`,
+      doc.getElementById("dbhud").textContent.includes(expected), true);
+  }
+  check("scan with files names what it looked for",
+    doc.getElementById("dbhud").textContent.length > 10, true);
+
+  // SPREAD OUT: even cells, no overlaps, links still attached
   window.dispatchEvent(new window.MessageEvent("message", {
-    data: Object.assign({}, payload, {
-      protocol: PROTOCOL_VERSION,
-      schemaHtml: "<svg><g id='er'></g></svg>",
-      schemaInfo: { filesScanned: 163, schemasFound: 13, usedFallback: false, root: "/repo" },
-    }),
+    data: Object.assign({}, payload, { protocol: PROTOCOL_VERSION, schema: sampleSchema }),
   }));
   await new Promise((r) => setTimeout(r, 200));
-  check("a successful scan renders the diagram",
-    doc.getElementById("schemaBody").innerHTML.includes("<svg"), true);
+  click(doc.getElementById("schemaSpread"));
+  await new Promise((r) => setTimeout(r, 150));
+  const spread = [...doc.querySelectorAll("#dbcanvas .tablecard")].map((c) => ({
+    name: c.dataset.name,
+    x: parseFloat(c.style.left),
+    y: parseFloat(c.style.top),
+    w: 230,
+    h: c.getElementsByClassName("fieldrow").length * 17 + 56,
+  }));
+  check("spread places every table", spread.length, sampleSchema.tables.length);
+  let collide = 0;
+  for (let i = 0; i < spread.length; i++) {
+    for (let j = i + 1; j < spread.length; j++) {
+      const a = spread[i], b = spread[j];
+      if (a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h) collide++;
+    }
+  }
+  check("spread leaves no overlapping tables", collide, 0);
+  // gaps between adjacent columns must be identical
+  const xs = [...new Set(spread.map((s) => Math.round(s.x)))].sort((a, b) => a - b);
+  const gaps = xs.slice(1).map((x, i) => x - xs[i]);
+  check("spread uses even column spacing", new Set(gaps).size <= 1, true);
+  check("relations survive the spread",
+    doc.querySelectorAll("#dblinks path[marker-end]").length, sampleSchema.relations.length);
+  check("spread reports what it did",
+    doc.getElementById("dbhud").textContent.includes("SPREAD"), true);
+
+  // ---------------- expandable git history ----------------
+  click(doc.querySelector('.tab[data-tab="git"]'));
+  const gitRow = doc.querySelector("#gitTable tbody tr[data-id]");
+  check("git rows show an expander", !!gitRow.querySelector(".expander"), true);
+  click(gitRow);
+  const hist = doc.querySelector("#gitTable tr.histrow");
+  check("clicking a row expands its history", !!hist, true);
+  const histText = hist.textContent;
+  check("history lists commits or says why not",
+    /COMMIT|No commits|has not been read/.test(histText), true);
+  click(gitRow);
+  check("clicking again collapses it", !doc.querySelector("#gitTable tr.histrow"), true);
   click(doc.querySelector('.tab[data-tab="graph"]'));
 
   console.log(

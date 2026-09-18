@@ -12,7 +12,7 @@ import * as path from "path";
 import * as vscode from "vscode";
 import { CallGraph } from "./graph";
 import { RiskService, tierFor } from "./risk";
-import { scanDatabaseSchemas, schemaDiagramHtml } from "./schema";
+import { inferSchemaRelations, scanDatabaseSchemas } from "./schema";
 import { PROTOCOL_VERSION } from "./protocol";
 import { buildStandaloneHtml } from "./standalone";
 
@@ -21,6 +21,7 @@ interface WireNode {
   name: string;
   file: string;
   startLine: number;
+  endLine: number;
   fanIn: number;
   fanOut: number;
   score: number;
@@ -35,8 +36,8 @@ interface WireNode {
     authors: { name: string; email: string; commits: number }[];
     /** Epoch ms of the most recent commit touching this function, if known. */
     lastChange: number | null;
-    /** Recent commits touching this function, for the GIT tab's charts. */
-    commits: { email: string; t: number }[];
+    /** Recent commits touching this function, for the GIT tab's charts and history. */
+    commits: { hash: string; email: string; name: string; t: number; subject: string }[];
     gitResolved: boolean;
   };
 }
@@ -47,14 +48,8 @@ export class GraphPanel {
   private disposables: vscode.Disposable[] = [];
   private ready = false;
   private schemaVisible = false;
-  private schemaHtml = "";
-  private schemaInfo: {
-    filesScanned: number;
-    schemasFound: number;
-    usedFallback: boolean;
-    root: string;
-    error?: string;
-  } | null = null;
+  private schemaData: SchemaPayload | null = null;
+
   /** Function the user clicked in a CodeLens, to select once the page is up. */
   focusId: string | undefined;
 
@@ -137,30 +132,7 @@ export class GraphPanel {
       return;
     }
     this.schemaVisible = true;
-    const root = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? "";
-
-    try {
-      const scan = await scanDatabaseSchemas(root);
-      this.schemaHtml = schemaDiagramHtml(scan.schemas);
-      // Report the scan itself, so "no schemas" can be told apart from
-      // "nothing was scanned" without guessing.
-      this.schemaInfo = {
-        filesScanned: scan.filesScanned,
-        schemasFound: scan.schemas.length,
-        usedFallback: scan.usedFallback,
-        root,
-        error: scan.error,
-      };
-    } catch (err) {
-      this.schemaHtml = "";
-      this.schemaInfo = {
-        filesScanned: 0,
-        schemasFound: 0,
-        usedFallback: false,
-        root,
-        error: String(err),
-      };
-    }
+    this.schemaData = await collectSchemas();
     this.update();
   }
 
@@ -194,8 +166,7 @@ export class GraphPanel {
       protocol: PROTOCOL_VERSION,
       version: this.context.extension?.packageJSON?.version ?? "dev",
       viewMode: this.schemaVisible ? "schema" : "graph",
-      schemaHtml: this.schemaHtml,
-      schemaInfo: this.schemaInfo,
+      schema: this.schemaData,
     });
     this.focusId = undefined; // one-shot: a later refresh should not yank the view back
   }
@@ -223,6 +194,51 @@ export class GraphPanel {
   }
 }
 
+/** Tables, their fields and the relations between them, ready for the page. */
+export interface SchemaPayload {
+  tables: {
+    name: string;
+    kind: string;
+    source: string;
+    fields: { name: string; type: string; nullable: boolean; primaryKey: boolean }[];
+  }[];
+  relations: { from: string; to: string; label: string }[];
+  filesScanned: number;
+  usedFallback: boolean;
+  root: string;
+  error?: string;
+}
+
+/** Run schema detection over the open workspace and shape it for the page. */
+export async function collectSchemas(): Promise<SchemaPayload> {
+  const root = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? "";
+  try {
+    const scan = await scanDatabaseSchemas(root);
+    return {
+      tables: scan.schemas.map((schema) => ({
+        name: schema.name,
+        kind: schema.kind,
+        source: vscode.workspace.asRelativePath(schema.source),
+        fields: schema.fields,
+      })),
+      relations: inferSchemaRelations(scan.schemas),
+      filesScanned: scan.filesScanned,
+      usedFallback: scan.usedFallback,
+      root,
+      error: scan.error,
+    };
+  } catch (err) {
+    return {
+      tables: [],
+      relations: [],
+      filesScanned: 0,
+      usedFallback: false,
+      root,
+      error: String(err),
+    };
+  }
+}
+
 /** Build the message payload the page consumes. Shared by the panel and the browser export. */
 export function serializeGraph(
   graph: CallGraph,
@@ -245,6 +261,7 @@ export function serializeGraph(
       name: node.name,
       file: vscode.workspace.asRelativePath(node.file),
       startLine: node.startLine,
+      endLine: node.endLine,
       fanIn: node.callers.size,
       fanOut: node.callees.size,
       score: info.score,
@@ -289,7 +306,14 @@ export async function openInBrowser(
   risk: RiskService,
   focusId?: string,
 ): Promise<void> {
-  const payload = serializeGraph(graph, risk, focusId);
+  const graphPayload = serializeGraph(graph, risk, focusId);
+  // Bake the schemas in too: a browser tab has no extension host to ask later.
+  const payload = {
+    ...graphPayload,
+    schema: await collectSchemas(),
+    protocol: PROTOCOL_VERSION,
+    version: context.extension?.packageJSON?.version ?? "dev",
+  };
   if (payload.nodes.length === 0) {
     vscode.window.showWarningMessage(
       "Blast Radius: nothing indexed yet, so there is no graph to open.",
