@@ -2,7 +2,7 @@
   "name": "blast-radius",
   "displayName": "Blast Radius",
   "description": "Call-graph aware risk visualization for your codebase.",
-  "version": "0.5.0",
+  "version": "0.7.0",
   "publisher": "blastradius",
   "private": true,
   "engines": {
@@ -67,6 +67,10 @@
       {
         "command": "blastradius.backupNow",
         "title": "Blast Radius: Back Up Now"
+      },
+      {
+        "command": "blastradius.exportFeatureDocs",
+        "title": "Blast Radius: Export Feature Docs for LLMs"
       }
     ],
     "configuration": {
@@ -113,8 +117,9 @@
     "setup": "npm install && npm run compile && npm run setup:demo",
     "setup:demo": "node scripts/setup-demo.js",
     "check:features": "node scripts/check-features.js",
-    "test": "node scripts/check-backups.js && node scripts/check-features.js && node scripts/check-webview.js demo && node --test test/",
-    "check:backups": "node scripts/check-backups.js"
+    "test": "node scripts/check-backups.js && node scripts/check-features.js && node scripts/check-llm.js && node scripts/check-webview.js demo && node --test test/",
+    "check:backups": "node scripts/check-backups.js",
+    "check:llm": "node scripts/check-llm.js"
   },
   "devDependencies": {
     "@types/node": "^20.11.0",

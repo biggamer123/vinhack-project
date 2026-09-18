@@ -21,7 +21,7 @@ import {
 import { RiskService } from "./risk";
 import { detectDatabaseSchemas, schemaDiagramHtml } from "./schema";
 import { BackupsController } from "./backupsController";
-import { GraphPanel, openInBrowser } from "./webview";
+import { exportAllFeatureDocs, GraphPanel, openInBrowser } from "./webview";
 
 /** Every dialect the bundled grammars can parse. */
 const SOURCE_GLOB = "**/*.{js,jsx,mjs,cjs,ts,mts,cts,tsx,go}";
@@ -112,6 +112,7 @@ export async function activate(
     vscode.commands.registerCommand("blastradius.backupsEnable", () => backupsController.enable()),
     vscode.commands.registerCommand("blastradius.backupsDisable", () => backupsController.disable()),
     vscode.commands.registerCommand("blastradius.backupNow", () => backupsController.backupNow("manual", "manual backup")),
+    vscode.commands.registerCommand("blastradius.exportFeatureDocs", () => exportAllFeatureDocs(graph, risk)),
     vscode.commands.registerCommand("blastradius.showSchemas", async () => {
       GraphPanel.toggleSchema();
     }),

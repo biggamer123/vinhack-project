@@ -45,6 +45,8 @@ export class CoverageProvider {
   async load(root: string): Promise<void> {
     this.lcov.clear();
     this.testMentions.clear();
+    // Cleared too, or every reload appends the same related tests again.
+    this.testRefs.clear();
     this.lcovPath = undefined;
 
     for (const candidate of LCOV_CANDIDATES) {
@@ -59,9 +61,10 @@ export class CoverageProvider {
       }
     }
 
-    if (!this.hasRealCoverage) {
-      await this.buildProxyIndex();
-    }
+    // Always scan test files: related tests are useful whether or not an lcov
+    // report exists. The name-mention proxy is only consulted without lcov -
+    // coverageFor prefers real coverage - so building it here changes no scores.
+    await this.buildProxyIndex();
   }
 
   /**

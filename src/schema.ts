@@ -262,11 +262,19 @@ function parseNoSqlSchemas(text: string, file: string): DatabaseSchema[] {
   const modelRe = /(?:mongoose\.)?model\s*\(\s*(?:['"`])([^'"`]+)(?:['"`])\s*,\s*([A-Za-z_][A-Za-z0-9_]*|\{[\s\S]*?\})\s*\)/gi;
   const prismaModelRe = /model\s+([A-Za-z_][A-Za-z0-9_]*)\s*\{([\s\S]*?)\}\s*(?:\n|$)/gi;
 
-  for (const match of text.matchAll(mongooseSchemaRe)) {
+  // Locate each `new Schema({` with a regex, but read its body by matching braces:
+  // a non-greedy regex stops at the first "})" and silently drops every field
+  // after a helper call such as `enumStringField(OPTIONS, { required: true })`.
+  const schemaStartRe = /(?:const|let|var)\s+([A-Za-z_][A-Za-z0-9_]*)\s*=\s*new\s+(?:mongoose\.)?Schema(?:<[^>]+>)?\s*\(\s*\{/g;
+  for (const match of text.matchAll(schemaStartRe)) {
     const name = match[1];
-    const body = match[2];
-    recordSchema(schemas, "nosql", name, file, parseNoSqlSchemaBody(body, file, "nosql"));
+    const open = (match.index ?? 0) + match[0].length - 1;
+    const body = balancedBody(text, open);
+    if (body !== null) {
+      recordSchema(schemas, "nosql", name, file, parseNoSqlSchemaBody(body, file, "nosql"));
+    }
   }
+  void mongooseSchemaRe;
 
   for (const match of text.matchAll(modelRe)) {
     const name = match[1];
@@ -303,6 +311,48 @@ function parseNoSqlSchemas(text: string, file: string): DatabaseSchema[] {
   }
 
   return schemas;
+}
+
+/**
+ * The text between the brace at `open` and its matching close, skipping braces
+ * inside string literals and comments. Null when the braces never balance.
+ */
+function balancedBody(text: string, open: number): string | null {
+  let depth = 0;
+  let quote: string | null = null;
+  for (let i = open; i < text.length; i++) {
+    const ch = text[i];
+    const next = text[i + 1];
+    if (quote) {
+      if (ch === "\\") {
+        i++;
+      } else if (ch === quote) {
+        quote = null;
+      }
+      continue;
+    }
+    if (ch === "/" && next === "/") {
+      const end = text.indexOf("\n", i);
+      i = end === -1 ? text.length : end;
+      continue;
+    }
+    if (ch === "/" && next === "*") {
+      const end = text.indexOf("*/", i + 2);
+      i = end === -1 ? text.length : end + 1;
+      continue;
+    }
+    if (ch === "'" || ch === '"' || ch === "`") {
+      quote = ch;
+    } else if (ch === "{") {
+      depth++;
+    } else if (ch === "}") {
+      depth--;
+      if (depth === 0) {
+        return text.slice(open + 1, i);
+      }
+    }
+  }
+  return null;
 }
 
 export function extractDatabaseSchemas(file: string, text: string): DatabaseSchema[] {

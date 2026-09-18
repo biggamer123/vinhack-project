@@ -144,6 +144,16 @@ refactor(users): split the repository layer
 Control title bar) walks you through type, title and optional scope, then fills the
 commit message box. It never commits.
 
+**Related tests.** The dex entry lists the test cases that mention the selected function
+(an `it(...)`/`test(...)` block naming it) and opens them on click. They are found whether
+or not an lcov report exists. Matching is by name, so a very generic function name can
+pick up unrelated tests.
+
+**Browser snapshots are served from localhost.** Open in Browser serves the page on a
+random `127.0.0.1` port that stays up while you use it - reloading works - and closes
+after 30 idle minutes, keeping at most five snapshots live. If a browser cannot be
+opened automatically, the URL is offered to copy instead.
+
 ## Backups and the command log
 
 For dire situations. Turn it on once per repository from the **BACKUPS** tab (or
@@ -199,6 +209,36 @@ features list the backups taken during their work.
 
 Git does not record every command, so commands typed outside VS Code that do not move
 HEAD - `git clean`, for instance - cannot appear.
+
+## Context for LLMs
+
+**LLM MD** turns what Blast Radius knows into Markdown you can hand an assistant
+before it touches the code. Everything in it is measured - graph edges, git history,
+risk scores and the source itself - never summarised or guessed.
+
+**For a function** (the LLM MD button in the dex entry, or the toolbar): risk
+metadata, callers and callees with locations, how far a change can reach through the
+call graph, the features it belongs to, recent history, and its source code. The page
+shows a quick version instantly; the extension then fills in the source.
+
+**For a feature** (LLM MD in a feature's detail): its commits in the authors' own
+words, who to ask, the files and functions it touched ranked by risk, the calls between
+those functions, **what outside the feature calls into it** - the code an assistant
+would otherwise break without knowing - what it depends on, its risks, the source of
+every function, and the full history.
+
+- **SAVE .MD** writes to `.blastradius/llm/features/` or `.blastradius/llm/functions/`
+  and opens the file.
+- **EXPORT ALL AS MD** in the FEATURES toolbar (or **Blast Radius: Export Feature Docs
+  for LLMs**) writes one file per feature plus a linked `FEATURES.md` index.
+- Source is capped at 150 lines per function and 2,000 per document so a document stays
+  usable in a prompt; anything cut says exactly where the rest lives.
+- Browser snapshots carry the feature documents with them, with **DOWNLOAD .MD** in
+  place of save.
+
+Commit `.blastradius/llm/` if you want teammates and agents to share the same context,
+or add it to `.gitignore` if you would rather regenerate it locally. Documents reflect the
+code at the moment they were generated - regenerate after significant changes.
 
 ## Run it
 

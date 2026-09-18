@@ -34,6 +34,10 @@ function check(label, actual, expected) {
  * animated values nor getScreenCTM, all of which d3 reads. Real browsers have
  * them; stub them so the layout and zoom paths actually run.
  */
+function CSS_ESCAPE(v) {
+  return String(v).replace(/["\\]/g, "\\$&");
+}
+
 function applyDomShims(w) {
   Object.defineProperty(w.HTMLElement.prototype, "clientWidth", {
     get: () => 1000,
@@ -910,6 +914,123 @@ async function buildPayload() {
   check("...and shows the lines to add", dB.getElementById("backupList").textContent.includes("add to your pre-push hook"), true);
 
   global.window = window; global.document = window.document; global.SVGElement = window.SVGElement;
+
+  // ---------------- LLM markdown ----------------
+  {
+    const postedL = [];
+    const domL = new JSDOM(html, { runScripts: "outside-only", pretendToBeVisual: true });
+    const wL = domL.window;
+    wL.d3 = require("d3");
+    applyDomShims(wL);
+    wL.acquireVsCodeApi = () => ({ postMessage: (m) => postedL.push(m) });
+    global.window = wL; global.document = wL.document; global.SVGElement = wL.SVGElement;
+    wL.eval(script);
+    wL.dispatchEvent(new wL.MessageEvent("message", {
+      data: Object.assign({}, payload, { protocol: PROTOCOL_VERSION, features: sampleFeatures }),
+    }));
+    await new Promise((r) => setTimeout(r, 250));
+    const dL = wL.document;
+    const clickL = (el) => el.dispatchEvent(new wL.MouseEvent("click", { bubbles: true }));
+
+    // toolbar button with nothing selected explains itself instead of a fake tooltip
+    clickL(dL.getElementById("svg")); // the test payload focuses a function on load; clear it like a user would
+    clickL(dL.getElementById("llmMd"));
+    check("LLM MD with no selection says to pick a function", dL.getElementById("hud").textContent.includes("SELECT A FUNCTION FIRST"), true);
+    check("...without opening a fake tooltip", dL.getElementById("tip").classList.contains("on"), false);
+
+    // function: instant page markdown (the original PR), then enriched by the host
+    const fnNode = payload.nodes[0];
+    clickL(dL.querySelector(`#railList .row[data-id="${CSS_ESCAPE(fnNode.id)}"]`) || dL.querySelector("#railList .row"));
+    clickL(dL.getElementById("llmMdBtn"));
+    const fnCard = dL.querySelector("#entry .llm-card");
+    check("function LLM MD card opens", !!fnCard, true);
+    check("card shows the original page markdown immediately", fnCard.querySelector("textarea").value.includes("## Callers"), true);
+    const fnReq = postedL.find((m) => m.type === "llmMd" && m.kind === "function");
+    check("card asks the host for the full document", !!fnReq, true);
+    wL.dispatchEvent(new wL.MessageEvent("message", {
+      data: { type: "llmMdResult", kind: "function", id: fnReq.id, markdown: "# full\n\n## Source\n```js\ncode()\n```" },
+    }));
+    check("host document replaces the placeholder", fnCard.querySelector("textarea").value.includes("## Source"), true);
+    check("note says source is included", fnCard.textContent.includes("including source code"), true);
+    clickL([...fnCard.querySelectorAll("button")].find((b) => b.textContent === "SAVE .MD"));
+    check("SAVE .MD asks the host to write the file", postedL.some((m) => m.type === "llmMdSave" && m.kind === "function"), true);
+
+    // feature
+    clickL(dL.querySelector('.tab[data-tab="features"]'));
+    clickL(dL.querySelector('#featureList .fcard[data-key="title:get users from db"]'));
+    clickL(dL.getElementById("featureLlm"));
+    const featCard = dL.querySelector("#featureDetail .llm-card");
+    check("feature LLM MD card opens", !!featCard, true);
+    check("feature card sits near the top of the detail", featCard.previousElementSibling && featCard.previousElementSibling.classList.contains("fsection"), true);
+    check("feature card requests the document", postedL.some((m) => m.type === "llmMd" && m.kind === "feature" && m.id === "title:get users from db"), true);
+    wL.dispatchEvent(new wL.MessageEvent("message", {
+      data: { type: "llmMdResult", kind: "feature", id: "title:get users from db",
+        markdown: "# Feature: get users from db\n\n### Called from outside the feature", savedTo: ".blastradius/llm/features/get-users-from-db.md" },
+    }));
+    check("feature document arrives", featCard.querySelector("textarea").value.includes("Called from outside the feature"), true);
+    check("saved path is reported", featCard.textContent.includes(".blastradius/llm/features/get-users-from-db.md"), true);
+
+    clickL(dL.getElementById("featureExportMd"));
+    check("EXPORT ALL AS MD asks the host", postedL.some((m) => m.type === "llmMdSaveAll"), true);
+
+    // browser snapshot: baked docs, download instead of save, no host-only export
+    wL.dispatchEvent(new wL.MessageEvent("message", {
+      data: Object.assign({}, payload, {
+        protocol: PROTOCOL_VERSION, standalone: true, features: sampleFeatures,
+        llm: { features: { "scope:billing": "# Feature: billing\n\nBAKED DOC" } },
+      }),
+    }));
+    await new Promise((r) => setTimeout(r, 150));
+    clickL(dL.querySelector('.tab[data-tab="features"]'));
+    clickL(dL.querySelector('#featureList .fcard[data-key="scope:billing"]'));
+    clickL(dL.getElementById("featureLlm"));
+    const bakedCard = dL.querySelector("#featureDetail .llm-card");
+    check("snapshot uses the baked feature document", bakedCard.querySelector("textarea").value.includes("BAKED DOC"), true);
+    check("snapshot offers DOWNLOAD .MD", [...bakedCard.querySelectorAll("button")].some((b) => b.textContent === "DOWNLOAD .MD"), true);
+    check("snapshot has no SAVE .MD", [...bakedCard.querySelectorAll("button")].some((b) => b.textContent === "SAVE .MD"), false);
+    check("snapshot hides EXPORT ALL", dL.getElementById("featureExportMd").style.display, "none");
+
+    global.window = window; global.document = window.document; global.SVGElement = window.SVGElement;
+  }
+
+  // ---------------- related tests (PR #2) + hostile content ----------------
+  {
+    const { jsonForScript } = require("../out/standalone");
+    const hostile = { name: "x</script><!--<script>alert(1)</script>", amp: "a & b", ls: "line\u2028sep" };
+    const encoded = jsonForScript(hostile);
+    check("embedded JSON never contains a raw </script>", encoded.includes("</script>"), false);
+    check("embedded JSON never contains a raw <!--", encoded.includes("<!--"), false);
+    check("embedded JSON round-trips exactly", JSON.stringify(JSON.parse(encoded)), JSON.stringify(hostile));
+
+    const refsPayload = JSON.parse(JSON.stringify(payload));
+    refsPayload.nodes[0].risk.testRefs = [{ file: "/repo/test/format.test.js", line: 2, name: "slugify lowercases" }];
+    refsPayload.protocol = PROTOCOL_VERSION;
+
+    // in VS Code: rows open the test
+    const postedT = [];
+    const domT = new JSDOM(html, { runScripts: "outside-only", pretendToBeVisual: true });
+    const wT = domT.window;
+    wT.d3 = require("d3");
+    applyDomShims(wT);
+    wT.acquireVsCodeApi = () => ({ postMessage: (m) => postedT.push(m) });
+    global.window = wT; global.document = wT.document; global.SVGElement = wT.SVGElement;
+    wT.eval(script);
+    wT.dispatchEvent(new wT.MessageEvent("message", { data: refsPayload }));
+    await new Promise((r) => setTimeout(r, 250));
+    const rowT = wT.document.querySelector("#entry [data-test-file]");
+    check("related tests are listed for the selected function", !!rowT, true);
+    rowT.dispatchEvent(new wT.MouseEvent("click", { bubbles: true }));
+    const reveal = postedT.find((m) => m.type === "revealTest");
+    check("clicking a related test asks the host to open it", reveal && reveal.file, "/repo/test/format.test.js");
+
+    // in a browser snapshot: no dead OPEN, the location instead
+    wT.dispatchEvent(new wT.MessageEvent("message", { data: Object.assign({}, refsPayload, { standalone: true }) }));
+    await new Promise((r) => setTimeout(r, 250));
+    const entryText = wT.document.getElementById("entry").textContent;
+    check("snapshot shows where the test lives", entryText.includes("test/format.test.js:3"), true);
+    check("snapshot has no dead OPEN link", !!wT.document.querySelector("#entry [data-test-file]"), false);
+    global.window = window; global.document = window.document; global.SVGElement = window.SVGElement;
+  }
 
   // ---------------- expandable git history ----------------
   click(doc.querySelector('.tab[data-tab="git"]'));

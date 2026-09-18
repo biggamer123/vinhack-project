@@ -6,7 +6,6 @@
  * template literal avoids escaping every ${} the D3 code needs.
  */
 import * as fs from "fs";
-import * as http from "http";
 import * as os from "os";
 import * as path from "path";
 import * as vscode from "vscode";
@@ -15,9 +14,18 @@ import { RiskService, tierFor } from "./risk";
 import { inferSchemaRelations, scanDatabaseSchemas } from "./schema";
 import { buildFeatures, FeaturesPayload, FunctionRef, RawCommit, readCommits } from "./features";
 import { findRepoRoot } from "./git";
+import {
+  assignFeatureFileNames,
+  featureMarkdown,
+  featuresIndexMarkdown,
+  FunctionInfo,
+  functionFileName,
+  functionMarkdown,
+  LlmContext,
+} from "./llmContext";
 import type { BackupsController, BackupsPayload } from "./backupsController";
 import { PROTOCOL_VERSION } from "./protocol";
-import { buildStandaloneHtml } from "./standalone";
+import { buildStandaloneHtml, servePage } from "./standalone";
 
 interface WireNode {
   id: string;
@@ -123,7 +131,15 @@ export class GraphPanel {
     this.panel.onDidDispose(() => this.dispose(), undefined, this.disposables);
   }
 
-  private onMessage(msg: { type: string; id?: string; text?: string; force?: boolean }): void {
+  private onMessage(msg: {
+    type: string;
+    id?: string;
+    text?: string;
+    force?: boolean;
+    kind?: string;
+    file?: string;
+    line?: number;
+  }): void {
     if (msg.type === "ready") {
       this.ready = true;
       this.update();
@@ -161,6 +177,18 @@ export class GraphPanel {
       void GraphPanel.backups?.backupNow("manual", "manual backup");
       return;
     }
+    if (msg.type === "llmMd" && msg.id && (msg.kind === "feature" || msg.kind === "function")) {
+      void this.sendLlmMarkdown(msg.kind, msg.id, false);
+      return;
+    }
+    if (msg.type === "llmMdSave" && msg.id && (msg.kind === "feature" || msg.kind === "function")) {
+      void this.sendLlmMarkdown(msg.kind, msg.id, true);
+      return;
+    }
+    if (msg.type === "llmMdSaveAll") {
+      void exportAllFeatureDocs(this.graph, this.risk);
+      return;
+    }
     if (msg.type === "copy" && typeof msg.text === "string") {
       void vscode.env.clipboard.writeText(msg.text);
       vscode.window.showInformationMessage("Blast Radius: command copied - paste it into a terminal at the repository.");
@@ -183,6 +211,30 @@ export class GraphPanel {
     this.backupsRequested = true;
     this.backupsData = await GraphPanel.backups.snapshot();
     this.update();
+  }
+
+  /** Build one Markdown document with real source, reply to the page, optionally save it. */
+  private async sendLlmMarkdown(kind: "feature" | "function", id: string, save: boolean): Promise<void> {
+    const ctx = await llmContextFor(this.graph, this.risk);
+    const markdown = kind === "feature" ? featureMarkdown(id, ctx) : functionMarkdown(id, ctx);
+    let savedTo: string | undefined;
+    if (save) {
+      const root = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+      if (!root) {
+        vscode.window.showWarningMessage("Blast Radius: open a folder to save LLM documents.");
+      } else {
+        const name =
+          kind === "feature"
+            ? assignFeatureFileNames(ctx.features?.features || []).get(id) || "feature.md"
+            : functionFileName(ctx.functions.get(id) || { name: "function", file: "unknown" });
+        const target = path.join(root, LLM_DIR, kind === "feature" ? "features" : "functions", name);
+        fs.mkdirSync(path.dirname(target), { recursive: true });
+        fs.writeFileSync(target, markdown);
+        savedTo = vscode.workspace.asRelativePath(target);
+        await vscode.window.showTextDocument(vscode.Uri.file(target), { preview: false, viewColumn: vscode.ViewColumn.One });
+      }
+    }
+    this.panel.webview.postMessage({ type: "llmMdResult", kind, id, markdown, savedTo });
   }
 
   private async loadFeatures(force: boolean): Promise<void> {
@@ -307,6 +359,91 @@ export interface SchemaPayload {
 
 /** Run schema detection over the open workspace and shape it for the page. */
 /** Read every commit in the open workspace's repository. */
+/** Where saved LLM documents go, relative to the workspace root. */
+export const LLM_DIR = path.join(".blastradius", "llm");
+
+/**
+ * Assemble everything the Markdown generator needs from the live index: every
+ * function with its risk and history, the features, and a reader for source.
+ * Files are read fresh from disk, so saved edits are reflected.
+ */
+export async function llmContextFor(graph: CallGraph, risk: RiskService): Promise<LlmContext> {
+  const functions = new Map<string, FunctionInfo>();
+  for (const node of graph.allNodes()) {
+    const info = risk.riskFor(node);
+    functions.set(node.id, {
+      id: node.id,
+      name: node.name,
+      file: vscode.workspace.asRelativePath(node.file),
+      absFile: node.file,
+      startLine: node.startLine,
+      endLine: node.endLine,
+      score: info.score,
+      tier: tierFor(info.score),
+      fanIn: info.fanIn,
+      fanOut: node.callees.size,
+      coverage: risk.coverageLabel(info),
+      coverageIsProxy: info.coverageIsProxy,
+      churnCount: info.churnCount,
+      busFactor: info.busFactor,
+      gitResolved: info.gitResolved,
+      authors: info.authors,
+      commits: info.commits.map((c) => ({ hash: c.hash, name: c.name, t: c.t, subject: c.subject })),
+      callers: [...node.callers],
+      callees: [...node.callees],
+    });
+  }
+  const read = await readFeatureCommits();
+  const cache = new Map<string, string[]>();
+  return {
+    functions,
+    features: featuresFor(graph, risk, read.commits, read.error),
+    generatedAt: new Date(),
+    readLines: (absFile, start, end) => {
+      try {
+        let lines = cache.get(absFile);
+        if (!lines) {
+          lines = fs.readFileSync(absFile, "utf8").split(/\r?\n/);
+          cache.set(absFile, lines);
+        }
+        return lines.slice(start, end + 1);
+      } catch {
+        return null;
+      }
+    },
+  };
+}
+
+/** Write one document per feature plus FEATURES.md, then open the index. */
+export async function exportAllFeatureDocs(graph: CallGraph, risk: RiskService): Promise<void> {
+  const root = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+  if (!root) {
+    vscode.window.showWarningMessage("Blast Radius: open a folder to export LLM documents.");
+    return;
+  }
+  const ctx = await llmContextFor(graph, risk);
+  const features = ctx.features?.features || [];
+  if (!features.length) {
+    vscode.window.showInformationMessage(
+      "Blast Radius: no tagged commits yet, so there are no features to document. " +
+        "Start commit messages with \"feature:\", \"bug fix:\" and so on.",
+    );
+    return;
+  }
+  const names = assignFeatureFileNames(features);
+  const dir = path.join(root, LLM_DIR);
+  fs.mkdirSync(path.join(dir, "features"), { recursive: true });
+  for (const feature of features) {
+    fs.writeFileSync(path.join(dir, "features", names.get(feature.key) as string), featureMarkdown(feature.key, ctx));
+  }
+  const index = path.join(dir, "FEATURES.md");
+  fs.writeFileSync(index, featuresIndexMarkdown(features, ctx, names));
+  await vscode.window.showTextDocument(vscode.Uri.file(index), { preview: false });
+  vscode.window.showInformationMessage(
+    `Blast Radius: wrote ${features.length} feature document${features.length === 1 ? "" : "s"} to ${vscode.workspace.asRelativePath(dir)}.`,
+  );
+}
+
 export async function readFeatureCommits(): Promise<{ commits: RawCommit[]; error?: string }> {
   const root = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? "";
   const repo = root ? await findRepoRoot(root) : undefined;
@@ -443,74 +580,67 @@ export async function openInBrowser(
   risk: RiskService,
   focusId?: string,
 ): Promise<void> {
-  const graphPayload = serializeGraph(graph, risk, focusId);
-  // Bake the schemas in too: a browser tab has no extension host to ask later.
-  const payload = {
-    ...graphPayload,
-    schema: await collectSchemas(),
-    backups: GraphPanel.backups ? await GraphPanel.backups.snapshot() : null,
-    features: await (async () => {
-      const read = await readFeatureCommits();
-      return featuresFor(graph, risk, read.commits, read.error);
-    })(),
-    protocol: PROTOCOL_VERSION,
-    version: context.extension?.packageJSON?.version ?? "dev",
-  };
-  if (payload.nodes.length === 0) {
-    vscode.window.showWarningMessage(
-      "Blast Radius: nothing indexed yet, so there is no graph to open.",
-    );
+  if (graph.size === 0) {
+    vscode.window.showWarningMessage("Blast Radius: nothing indexed yet, so there is no graph to open.");
     return;
   }
 
-  const template = fs.readFileSync(
-    path.join(context.extensionPath, "media", "graph.html"),
-    "utf8",
-  );
-  const html = buildStandaloneHtml(
-    template,
-    payload,
-    new Date().toLocaleString(),
-  );
+  await vscode.window.withProgress(
+    { location: vscode.ProgressLocation.Notification, title: "Blast Radius: preparing the browser snapshot" },
+    async (progress) => {
+      try {
+        const graphPayload = serializeGraph(graph, risk, focusId);
 
-  const server = http.createServer(
-    (req: http.IncomingMessage, res: http.ServerResponse) => {
-      res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
-      res.end(html);
+        // A browser tab has no extension host to ask later, so everything the
+        // tabs need is baked in now.
+        progress.report({ message: "features and LLM documents" });
+        const ctx = await llmContextFor(graph, risk);
+        const docs: Record<string, string> = {};
+        let total = 0;
+        for (const feature of ctx.features?.features || []) {
+          // Source is included, but once the snapshot gets large later documents
+          // drop it so the page stays quick to load.
+          const md = featureMarkdown(feature.key, { ...ctx, maxSourceLines: total > 4_000_000 ? 0 : 1200 });
+          total += md.length;
+          docs[feature.key] = md;
+        }
+
+        progress.report({ message: "database schemas" });
+        const schema = await collectSchemas();
+
+        progress.report({ message: "backups and command log" });
+        const backups = GraphPanel.backups ? await GraphPanel.backups.snapshot() : null;
+
+        const payload = {
+          ...graphPayload,
+          schema,
+          backups,
+          features: ctx.features,
+          llm: { features: docs },
+          protocol: PROTOCOL_VERSION,
+          version: context.extension?.packageJSON?.version ?? "dev",
+        };
+
+        const template = fs.readFileSync(path.join(context.extensionPath, "media", "graph.html"), "utf8");
+        const html = buildStandaloneHtml(template, payload, new Date().toLocaleString());
+
+        progress.report({ message: "opening" });
+        const page = await servePage(html);
+        const opened = await vscode.env.openExternal(vscode.Uri.parse(page.url));
+        if (!opened) {
+          // Some setups (remote sessions, locked-down browsers) refuse to open
+          // URLs. Leave the page served and hand over the address instead.
+          const choice = await vscode.window.showWarningMessage(
+            `Blast Radius: could not open a browser automatically. The snapshot is at ${page.url}`,
+            "Copy URL",
+          );
+          if (choice === "Copy URL") {
+            await vscode.env.clipboard.writeText(page.url);
+          }
+        }
+      } catch (err) {
+        vscode.window.showErrorMessage(`Blast Radius: could not open the browser snapshot - ${err}`);
+      }
     },
   );
-
-  try {
-    await new Promise<void>((resolve, reject) => {
-      server.once("error", reject);
-      server.listen(0, "127.0.0.1", async () => {
-        const address = server.address();
-        if (!address || typeof address === "string") {
-          reject(new Error("Could not determine a local port for the graph preview."));
-          return;
-        }
-
-        const url = `http://127.0.0.1:${address.port}/blast-radius.html`;
-
-        const requestStarted = new Promise<void>((requestResolve) => {
-          server.once("request", () => requestResolve());
-        });
-
-        try {
-          await vscode.env.openExternal(vscode.Uri.parse(url));
-          await Promise.race([
-            requestStarted,
-            new Promise<void>((timeoutResolve) => {
-              setTimeout(timeoutResolve, 5000);
-            }),
-          ]);
-          resolve();
-        } catch (err) {
-          reject(err);
-        }
-      });
-    });
-  } finally {
-    server.close();
-  }
 }

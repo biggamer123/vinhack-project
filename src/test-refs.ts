@@ -8,6 +8,26 @@ function escapeRegex(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+const TEST_START = /\b(?:it|test|specify)\s*\(\s*['"`]([^'"`]+)['"`]/;
+const WINDOW = 35;
+
+/**
+ * The lines belonging to the test that starts at `start`: up to the next test
+ * declaration, capped at WINDOW lines. Without the stop, a short test would
+ * swallow the one after it and get credited with that test's functions.
+ */
+function testBlock(lines: string[], start: number): string {
+  const end = Math.min(lines.length, start + WINDOW);
+  const body = [lines[start]];
+  for (let i = start + 1; i < end; i++) {
+    if (TEST_START.test(lines[i])) {
+      break;
+    }
+    body.push(lines[i]);
+  }
+  return body.join("\n");
+}
+
 export function findTestReferences(text: string, targetName: string): TestReference[] {
   const refs: TestReference[] = [];
   const lines = text.split(/\r?\n/);
@@ -15,11 +35,11 @@ export function findTestReferences(text: string, targetName: string): TestRefere
 
   for (let index = 0; index < lines.length; index++) {
     const line = lines[index];
-    const testMatch = line.match(/\b(?:it|test|specify)\s*\(\s*['"`]([^'"`]+)['"`]/);
+    const testMatch = line.match(TEST_START);
     if (!testMatch) {
       continue;
     }
-    const block = lines.slice(index, Math.min(lines.length, index + 35)).join("\n");
+    const block = testBlock(lines, index);
     if (!target.test(block)) {
       continue;
     }
@@ -39,12 +59,12 @@ export function extractTestIdentifiers(text: string): Map<string, TestReference[
 
   for (let start = 0; start < lines.length; start++) {
     const line = lines[start];
-    const titleMatch = line.match(/\b(?:it|test|specify)\s*\(\s*['"`]([^'"`]+)['"`]/);
+    const titleMatch = line.match(TEST_START);
     if (!titleMatch) {
       continue;
     }
 
-    const block = lines.slice(start, Math.min(lines.length, start + 35)).join("\n");
+    const block = testBlock(lines, start);
     const names = new Set<string>();
     for (const match of block.matchAll(/\b[A-Za-z_$][\w$]*\b/g)) {
       const name = match[0];

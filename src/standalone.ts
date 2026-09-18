@@ -8,6 +8,8 @@
  * actually boots - the injection point here is load-bearing, see below.
  */
 
+import * as http from "http";
+
 export interface StandalonePayload {
   type: "graph";
   nodes: unknown[];
@@ -22,7 +24,7 @@ export function buildStandaloneHtml(
   payload: StandalonePayload,
   stamp: string
 ): string {
-  const data = JSON.stringify({
+  const data = jsonForScript({
     ...payload,
     standalone: true,
     summary: `${payload.summary} · snapshot ${stamp}`,
@@ -65,4 +67,116 @@ export function buildStandaloneHtml(
  */
 export function removeCdnScripts(html: string): string {
   return html.replace(/<script\b[^>]*\bsrc\s*=\s*"https:\/\/[^"]*"[^>]*>\s*<\/script>/gi, '');
+}
+
+/**
+ * JSON that is safe to place inside an inline <script>.
+ *
+ * JSON.stringify leaves "<", ">" and "&" alone, so any string containing
+ * "</script>" - source code, a commit message, a test name - ends the script
+ * block early and the page renders nothing. "<!--" inside a script also changes
+ * how the browser parses what follows. Escaping those characters as \u
+ * sequences keeps the value identical once parsed, and U+2028/U+2029 are escaped
+ * because older JavaScript engines treat them as line breaks inside strings.
+ */
+export function jsonForScript(value: unknown): string {
+  return JSON.stringify(value)
+    .replace(/</g, "\\u003c")
+    .replace(/>/g, "\\u003e")
+    .replace(/&/g, "\\u0026")
+    .replace(/\u2028/g, "\\u2028")
+    .replace(/\u2029/g, "\\u2029");
+}
+
+/* ------------------------------------------------------------------ serving */
+
+
+export interface ServedPage {
+  url: string;
+  close: () => void;
+}
+
+const IDLE_CLOSE_MS = 30 * 60 * 1000;
+const MAX_LIVE_SERVERS = 5;
+const live: ServedPage[] = [];
+
+/**
+ * Serve one snapshot page on a random localhost port.
+ *
+ * The server stays up while the tab is being used - so reloading works - and
+ * closes itself after 30 minutes without a request. Opening more snapshots
+ * closes the oldest once more than five are live. Only the page and a favicon
+ * are served; everything else is a 404, and nothing listens beyond 127.0.0.1.
+ */
+export function servePage(html: string, idleCloseMs = IDLE_CLOSE_MS): Promise<ServedPage> {
+  const body = Buffer.from(html, "utf8");
+  return new Promise((resolve, reject) => {
+    let idle: NodeJS.Timeout | undefined;
+    const server = http.createServer((req, res) => {
+      armIdle();
+      const url = (req.url || "/").split("?")[0];
+      if (req.method !== "GET" && req.method !== "HEAD") {
+        res.writeHead(405, { Allow: "GET, HEAD" });
+        res.end();
+        return;
+      }
+      if (url === "/" || url === "/blast-radius.html") {
+        res.writeHead(200, {
+          "Content-Type": "text/html; charset=utf-8",
+          "Content-Length": body.length,
+          "Cache-Control": "no-store",
+        });
+        res.end(req.method === "HEAD" ? undefined : body);
+        return;
+      }
+      if (url === "/favicon.ico") {
+        res.writeHead(204);
+        res.end();
+        return;
+      }
+      res.writeHead(404, { "Content-Type": "text/plain" });
+      res.end("not found");
+    });
+
+    const page: ServedPage = {
+      url: "",
+      close: () => {
+        if (idle) {
+          clearTimeout(idle);
+        }
+        server.close();
+        server.closeAllConnections?.();
+        const at = live.indexOf(page);
+        if (at !== -1) {
+          live.splice(at, 1);
+        }
+      },
+    };
+
+    function armIdle(): void {
+      if (idle) {
+        clearTimeout(idle);
+      }
+      idle = setTimeout(() => page.close(), idleCloseMs);
+      idle.unref();
+    }
+
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", () => {
+      const address = server.address();
+      if (!address || typeof address === "string") {
+        server.close();
+        reject(new Error("could not determine a local port for the snapshot"));
+        return;
+      }
+      server.unref();
+      page.url = `http://127.0.0.1:${address.port}/blast-radius.html`;
+      armIdle();
+      live.push(page);
+      while (live.length > MAX_LIVE_SERVERS) {
+        live[0].close();
+      }
+      resolve(page);
+    });
+  });
 }

@@ -393,6 +393,7 @@
     <button class="btn" id="featureByPerson">BY PERSON</button>
     <span id="typeChips" style="display:flex;gap:5px;flex-wrap:wrap"></span>
     <button class="btn" id="featureRefresh" style="background:var(--blue);color:#fff">RE-READ GIT LOG</button>
+    <button class="btn" id="featureExportMd" style="background:var(--dark);color:#fff">EXPORT ALL AS MD</button>
   </div>
 
   <div class="toolbar" id="bar-backups" style="display:none">
@@ -564,7 +565,7 @@ window.addEventListener('error', function (e) {
   var query = '', tab = 'graph', lineageStack = [], authorColor = new Map();
   // Must match PROTOCOL_VERSION in src/protocol.ts. A payload older than this
   // means the running extension host predates this page - see the banner.
-  var EXPECTED_PROTOCOL = 7;
+  var EXPECTED_PROTOCOL = 8;
 
   var $ = function (id) { return document.getElementById(id); };
   var esc = function (s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); };
@@ -1148,10 +1149,13 @@ window.addEventListener('error', function (e) {
       var testHtml = '<div class="card" style="margin-top:10px">' +
         '<div class="cardhead">RELATED TESTS</div>' +
         d.risk.testRefs.map(function (ref) {
-          return '<div class="row" data-test-file="' + esc(ref.file) + '" data-test-line="' + esc(String(ref.line || 0)) + '">' +
+          // A browser snapshot cannot open files, so show where the test lives instead of a dead OPEN.
+          var where = String(ref.file || '').split(/[\\/]/).slice(-2).join('/') + ':' + ((ref.line || 0) + 1);
+          return '<div class="row"' + (standalone ? '' : ' data-test-file="' + esc(ref.file) + '" data-test-line="' + esc(String(ref.line || 0)) + '"') +
+            ' title="' + esc(ref.file) + ':' + ((ref.line || 0) + 1) + '">' +
             '<i class="swatch" style="background:var(--gb-green)"></i>' +
             '<span class="nm">' + esc(ref.name) + '</span>' +
-            '<span class="sc">OPEN</span></div>';
+            '<span class="sc">' + (standalone ? esc(where) : 'OPEN') + '</span></div>';
         }).join('') + '</div>';
       var afterRel = document.createElement('div');
       afterRel.innerHTML = testHtml;
@@ -1215,47 +1219,105 @@ window.addEventListener('error', function (e) {
     return lines.join('\n');
   }
 
-  function renderLlmMarkdown(d) {
-    var existing = $('entry').querySelector('#llmMdCard');
-    if (existing) { existing.remove(); }
+  /**
+   * Show an LLM MD card. The markdown shown first is built right here in the page
+   * (instant, no source code); when the extension host is available it replies
+   * with the full document - real source code and feature membership included -
+   * and the card updates in place.
+   */
+  var llmCards = {};
+
+  function llmCard(container, kind, id, title, markdown, insertAfter) {
+    var cardKey = kind + '|' + id;
+    var old = container.querySelector('.llm-card');
+    if (old) { old.remove(); }
 
     var card = document.createElement('div');
-    card.id = 'llmMdCard';
     card.className = 'llm-card';
-    card.innerHTML = '<div class="cardhead">LLM MD</div>' +
-      '<div class="empty" style="margin-bottom:8px">Copy the markdown for this function and its graph neighborhood.</div>';
+    card.dataset.llmKey = cardKey;
+    card.innerHTML = '<div class="cardhead">LLM MD - ' + esc(title) + '</div>' +
+      '<div class="empty llm-note" style="margin-bottom:6px"></div>';
 
     var text = document.createElement('textarea');
     text.className = 'llm-md-output';
     text.readOnly = true;
-    text.value = buildLlmMarkdown(d);
+    text.value = markdown;
 
-    var actionRow = document.createElement('div');
-    actionRow.style.display = 'flex';
-    actionRow.style.gap = '6px';
-    actionRow.style.marginTop = '8px';
+    var row = document.createElement('div');
+    row.style.display = 'flex'; row.style.gap = '6px'; row.style.marginTop = '8px'; row.style.flexWrap = 'wrap';
 
     var copy = document.createElement('button');
     copy.className = 'btn';
     copy.textContent = 'COPY';
-    copy.onclick = function () {
-      text.focus();
-      text.select();
-      try {
-        document.execCommand('copy');
-        copy.textContent = 'COPIED';
-        setTimeout(function () { copy.textContent = 'COPY'; }, 1100);
-      } catch (err) {
-        copy.textContent = 'COPY FAILED';
-        setTimeout(function () { copy.textContent = 'COPY'; }, 1100);
-      }
-    };
+    copy.onclick = function () { copyText(text.value, copy); };
+    row.appendChild(copy);
 
-    actionRow.appendChild(copy);
+    if (standalone) {
+      var dl = document.createElement('button');
+      dl.className = 'btn';
+      dl.textContent = 'DOWNLOAD .MD';
+      dl.onclick = function () {
+        var blob = new Blob([text.value], { type: 'text/markdown' });
+        var a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = (title || kind).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') + '.md';
+        document.body.appendChild(a); a.click(); a.remove();
+      };
+      row.appendChild(dl);
+    } else {
+      var save = document.createElement('button');
+      save.className = 'btn';
+      save.style.background = 'var(--blue)'; save.style.color = '#fff';
+      save.textContent = 'SAVE .MD';
+      save.onclick = function () { vscode.postMessage({ type: 'llmMdSave', kind: kind, id: id }); };
+      row.appendChild(save);
+    }
+
     card.appendChild(text);
-    card.appendChild(actionRow);
-    $('entry').appendChild(card);
+    card.appendChild(row);
+    if (insertAfter && insertAfter.parentNode) {
+      insertAfter.parentNode.insertBefore(card, insertAfter.nextSibling);
+    } else {
+      container.appendChild(card);
+    }
+    llmCards[cardKey] = card;
+    return card;
   }
+
+  function setLlmNote(card, note) {
+    var el = card && card.querySelector('.llm-note');
+    if (el) { el.textContent = note; }
+  }
+
+  function renderLlmMarkdown(d) {
+    var card = llmCard($('entry'), 'function', d.id, d.name, buildLlmMarkdown(d));
+    if (standalone) {
+      setLlmNote(card, 'Function context from the graph. Source code needs the VS Code extension.');
+    } else {
+      setLlmNote(card, 'Adding source code and features...');
+      vscode.postMessage({ type: 'llmMd', kind: 'function', id: d.id });
+    }
+  }
+
+  function renderFeatureLlm(f) {
+    var detail = $('featureDetail');
+    var baked = featureLlmDocs && featureLlmDocs[f.key];
+    var first = detail.querySelector('.fsection');
+    var placeholder = baked || ('# Feature: ' + f.name + '\n\nBuilding the document with source code...');
+    var card = llmCard(detail, 'feature', f.key, f.name, placeholder, first);
+    if (baked) {
+      setLlmNote(card, 'Full feature context, generated when this snapshot was exported.');
+    } else if (standalone) {
+      setLlmNote(card, 'No feature document in this snapshot. Re-run "Open Graph in Browser".');
+    } else {
+      setLlmNote(card, 'Building the document with source code...');
+      vscode.postMessage({ type: 'llmMd', kind: 'feature', id: f.key });
+    }
+    if (card.scrollIntoView) { card.scrollIntoView({ block: 'nearest' }); }
+  }
+
+  /** Feature documents baked into a browser snapshot. */
+  var featureLlmDocs = null;
 
   /* --------------------------------------------------------- hover tooltip */
   var tipTimer = null;
@@ -1812,6 +1874,7 @@ window.addEventListener('error', function (e) {
       '<div class="path">' + (f.scope ? 'scope: ' + esc(f.scope) + ' &nbsp;|&nbsp; ' : '') + total + ' commits &nbsp;|&nbsp; ' +
       dateText(f.firstChange) + ' - ' + dateText(f.lastChange) + '</div>' +
       (f.functions.length ? '<button class="btn" id="featureShowGraph">SHOW ' + f.functions.length + ' FUNCTIONS IN GRAPH</button>' : '') +
+      '<button class="btn" id="featureLlm" style="background:var(--dark);color:#fff;margin-left:6px">LLM MD</button>' +
       '</div>' +
       '<div class="fsection"><h3>WHO WORKED ON IT</h3>' + people + '</div>' +
       '<div class="fsection"><h3>FUNCTIONS (' + f.functions.length + ')</h3>' + fns + '</div>' +
@@ -1837,6 +1900,8 @@ window.addEventListener('error', function (e) {
   }
 
   function wireFeatureDetail(f) {
+    var llmBtn = $('featureLlm');
+    if (llmBtn) { llmBtn.onclick = function () { renderFeatureLlm(f); }; }
     $('featureDetail').querySelectorAll('.jump[data-backup]').forEach(function (el) {
       el.onclick = function (e) { e.stopPropagation(); jumpToBackup(el.dataset.backup); };
     });
@@ -1895,6 +1960,9 @@ window.addEventListener('error', function (e) {
   }
 
   $('featureSearch').addEventListener('input', renderFeatures);
+  $('featureExportMd').addEventListener('click', function () {
+    vscode.postMessage({ type: 'llmMdSaveAll' });
+  });
   $('featureRefresh').addEventListener('click', function () { requestFeatures(true); });
   $('featureByFeature').addEventListener('click', function () {
     featureMode = 'feature';
@@ -2248,15 +2316,7 @@ window.addEventListener('error', function (e) {
   $('browser').addEventListener('click', function () { vscode.postMessage({ type: 'browser' }); });
   $('llmMd').addEventListener('click', function () {
     if (!selected) {
-      showTip({ clientX: window.innerWidth / 2, clientY: window.innerHeight / 2 }, {
-        name: 'Select a function',
-        risk: { coveragePct: 0, fanIn: 0, churnCount: 0, busFactor: 0 },
-        score: 0,
-        tier: 'low',
-        file: '',
-        startLine: 0,
-        fanOut: 0
-      });
+      $('hud').innerHTML = 'LLM MD: SELECT A FUNCTION FIRST<br/>click a node, or pick one from the function index';
       return;
     }
     renderLlmMarkdown(selected);
@@ -2288,15 +2348,29 @@ window.addEventListener('error', function (e) {
   /* ----------------------------------------------------------------- data */
   window.addEventListener('message', function (event) {
     var msg = event.data;
+    if (msg && msg.type === 'llmMdResult') {
+      var llmTarget = llmCards[msg.kind + '|' + msg.id];
+      if (llmTarget && llmTarget.isConnected) {
+        llmTarget.querySelector('textarea').value = msg.markdown;
+        setLlmNote(llmTarget, msg.savedTo
+          ? 'Saved to ' + msg.savedTo + ' and opened in the editor.'
+          : (msg.kind === 'feature'
+              ? 'Full feature context: commits, owners, functions with source, and what outside the feature depends on it.'
+              : 'Full function context, including source code and the features it belongs to.'));
+      }
+      return;
+    }
     if (!msg || msg.type !== 'graph') { return; }
     if (msg.standalone) {
       standalone = true;
       $('browser').style.display = 'none';
+      $('featureExportMd').style.display = 'none';
     }
     if (!standalone && (msg.protocol || 0) < EXPECTED_PROTOCOL) {
       $('staleHost').style.display = 'block';
     }
     if (msg.schema) { renderSchema(msg.schema); }
+    if (msg.llm && msg.llm.features) { featureLlmDocs = msg.llm.features; }
     if (msg.features) { featureData = msg.features; if (tab === 'features') { renderFeatures(); } }
     if (msg.backups) {
       backupData = msg.backups;

@@ -122,6 +122,7 @@ function walk(dir, acc = []) {
   // Features, built the same way the extension's browser export builds them.
   const { readCommits, buildFeatures } = require("../out/features");
   let features = null;
+  let llmDocs = null;
   if (repo) {
     const refs = nodes.map((n) => ({
       id: n.id,
@@ -133,6 +134,28 @@ function walk(dir, acc = []) {
       commitHashes: (n.risk.commits || []).map((c) => c.hash),
     }));
     features = buildFeatures(await readCommits(repo), refs);
+
+    // Feature documents for LLMs, baked in the same way the extension's export does.
+    const llm = require("../out/llmContext");
+    const functions = new Map();
+    for (const n of graph.allNodes()) {
+      const wire = nodes.find((x) => x.id === n.id);
+      functions.set(n.id, {
+        id: n.id, name: n.name, file: wire.file, absFile: n.file, startLine: n.startLine, endLine: n.endLine,
+        score: wire.score, tier: wire.tier, fanIn: n.callers.size, fanOut: n.callees.size,
+        coverage: wire.risk.coveragePct === null ? "no data" : wire.risk.coveragePct + "%",
+        coverageIsProxy: wire.risk.coverageIsProxy, churnCount: wire.risk.churnCount, busFactor: wire.risk.busFactor,
+        gitResolved: wire.risk.gitResolved, authors: wire.risk.authors,
+        commits: (wire.risk.commits || []).map((c) => ({ hash: c.hash, name: c.name, t: c.t, subject: c.subject })),
+        callers: [...n.callers], callees: [...n.callees],
+      });
+    }
+    const ctx = {
+      functions, features, generatedAt: new Date(),
+      readLines: (abs, a, b) => { try { return fs.readFileSync(abs, "utf8").split(/\r?\n/).slice(a, b + 1); } catch { return null; } },
+    };
+    llmDocs = {};
+    for (const f of features.features) llmDocs[f.key] = llm.featureMarkdown(f.key, { ...ctx, maxSourceLines: 1200 });
     console.log(`features: ${features.features.length} from ${features.taggedCommits}/${features.totalCommits} commits`);
   }
 
@@ -177,7 +200,7 @@ function walk(dir, acc = []) {
 
   const html = buildStandaloneHtml(
     template,
-    { type: "graph", nodes, edges, summary, schema, features, backups: backupsPayload, protocol: PROTOCOL_VERSION, version: "preview" },
+    { type: "graph", nodes, edges, summary, schema, features, backups: backupsPayload, llm: { features: llmDocs || {} }, protocol: PROTOCOL_VERSION, version: "preview" },
     new Date().toLocaleString(),
   );
 
