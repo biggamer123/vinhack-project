@@ -1,0 +1,86 @@
+{
+  "name": "blast-radius",
+  "displayName": "Blast Radius",
+  "description": "Call-graph aware risk visualization for your codebase.",
+  "version": "0.1.0",
+  "publisher": "blastradius",
+  "private": true,
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Visualization",
+    "Programming Languages"
+  ],
+  "activationEvents": [
+    "onLanguage:javascript",
+    "onLanguage:javascriptreact",
+    "onLanguage:typescript",
+    "onLanguage:typescriptreact",
+    "workspaceContains:**/*.js",
+    "workspaceContains:**/*.ts",
+    "workspaceContains:**/*.tsx"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "blastradius.showGraph",
+        "title": "Blast Radius: Show Full Graph",
+        "icon": "$(graph)"
+      },
+      {
+        "command": "blastradius.openInBrowser",
+        "title": "Blast Radius: Open Graph in Browser"
+      },
+      {
+        "command": "blastradius.reindex",
+        "title": "Blast Radius: Re-index Workspace"
+      },
+      {
+        "command": "blastradius.showStats",
+        "title": "Blast Radius: Show Graph Stats"
+      },
+      {
+        "command": "blastradius.reloadCoverage",
+        "title": "Blast Radius: Reload Coverage (lcov)"
+      }
+    ],
+    "configuration": {
+      "title": "Blast Radius",
+      "properties": {
+        "blastradius.enableCodeLens": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show caller-count CodeLens above functions."
+        },
+        "blastradius.maxGitFunctions": {
+          "type": "number",
+          "default": 800,
+          "description": "Maximum number of functions to run `git log -L` against. Raise for full coverage on large repos, lower if indexing feels slow."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "vscode:prepublish": "npm run compile",
+    "check": "node scripts/check-graph.js demo",
+    "check:risk": "node scripts/check-risk.js demo",
+    "check:webview": "node scripts/check-webview.js demo",
+    "preview": "node scripts/preview.js demo",
+    "package": "npx --yes @vscode/vsce package --allow-missing-repository --baseContentUrl https://local.invalid/blast-radius --baseImagesUrl https://local.invalid/blast-radius"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@types/vscode": "^1.85.0",
+    "d3": "^7.8.5",
+    "jsdom": "^24.1.3",
+    "tree-sitter-wasms": "^0.1.13",
+    "typescript": "^5.4.0"
+  },
+  "dependencies": {
+    "web-tree-sitter": "^0.22.6"
+  }
+}
