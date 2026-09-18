@@ -8,7 +8,6 @@
  *   - busFactor = distinct author emails, over all time
  */
 import { execFile } from 'child_process';
-import * as fs from 'fs';
 import * as path from 'path';
 
 export interface RangeCommit {
@@ -32,14 +31,6 @@ export interface RangeHistory {
 }
 
 export const CHURN_WINDOW_DAYS = 90;
-
-function realPath(p: string): string {
-  try {
-    return fs.realpathSync(p);
-  } catch {
-    return p;
-  }
-}
 
 /** ASCII unit separator: safe inside author names and emails. */
 const SEP = String.fromCharCode(31);
@@ -81,10 +72,7 @@ export async function historyForRange(
   endLine: number
 ): Promise<RangeHistory> {
   const empty: RangeHistory = { commits: [], churnCount: 0, busFactor: 0, authors: [], lastChange: null };
-  // git reports the repo root with symlinks resolved (/private/var on macOS,
-  // for instance) while editor paths keep them. Compare real paths, or every
-  // function in a symlinked checkout silently loses its history.
-  const rel = path.relative(realPath(repoRoot), realPath(file));
+  const rel = path.relative(repoRoot, file);
   if (rel.startsWith('..')) {
     return empty;
   }

@@ -28,6 +28,8 @@ export interface RiskInfo {
   lastChange: number | null;
   /** Recent commits touching this function, newest first. */
   commits: { hash: string; email: string; name: string; t: number; subject: string }[];
+  /** Related test cases that exercise this function in the workspace. */
+  testRefs: { file: string; line: number; name: string }[];
   /** False until git history for this function has actually been fetched. */
   gitResolved: boolean;
 }
@@ -96,6 +98,7 @@ export class RiskService {
       authors: [],
       lastChange: null,
       commits: [],
+      testRefs: this.coverage.relatedTests(node.name),
       gitResolved: false,
     };
     info.score = computeScore(info);

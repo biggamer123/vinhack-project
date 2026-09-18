@@ -11,4 +11,4 @@
  * Bump this whenever the payload gains fields the page relies on. The page
  * compares it against its own copy and tells the user to restart VS Code.
  */
-export const PROTOCOL_VERSION = 7;
+export const PROTOCOL_VERSION = 5;

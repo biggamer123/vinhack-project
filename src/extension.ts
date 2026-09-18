@@ -20,7 +20,6 @@ import {
 } from "./indexer";
 import { RiskService } from "./risk";
 import { detectDatabaseSchemas, schemaDiagramHtml } from "./schema";
-import { BackupsController } from "./backupsController";
 import { GraphPanel, openInBrowser } from "./webview";
 
 /** Every dialect the bundled grammars can parse. */
@@ -38,7 +37,6 @@ const LANGUAGES = [
 ];
 
 const graph = new CallGraph();
-let backupsController: BackupsController;
 let risk: RiskService;
 let lensProvider: RiskCodeLensProvider;
 let output: vscode.OutputChannel;
@@ -59,15 +57,6 @@ export async function activate(
   log("activating…");
 
   risk = new RiskService(graph);
-
-  // Local backups: opt-in per repository, resumed automatically once enabled.
-  backupsController = new BackupsController(context, (m) => log(m));
-  GraphPanel.backups = backupsController;
-  context.subscriptions.push(
-    backupsController,
-    backupsController.onDidChange(() => GraphPanel.refreshBackups()),
-  );
-  void backupsController.start();
   lensProvider = new RiskCodeLensProvider(graph, risk);
 
   const selector = LANGUAGES.map((language) => ({ language, scheme: "file" }));
@@ -108,10 +97,6 @@ export async function activate(
         log(`reloaded coverage from ${risk.coverageSource}`);
       }
     }),
-    vscode.commands.registerCommand("blastradius.tagCommit", tagCommitMessage),
-    vscode.commands.registerCommand("blastradius.backupsEnable", () => backupsController.enable()),
-    vscode.commands.registerCommand("blastradius.backupsDisable", () => backupsController.disable()),
-    vscode.commands.registerCommand("blastradius.backupNow", () => backupsController.backupNow("manual", "manual backup")),
     vscode.commands.registerCommand("blastradius.showSchemas", async () => {
       GraphPanel.toggleSchema();
     }),
@@ -371,67 +356,4 @@ function showStats(): void {
 
 function log(message: string): void {
   output.appendLine(`[blast-radius] ${message}`);
-}
-
-/**
- * Help write a commit message in the features convention. Fills the Source
- * Control message box and stops there - committing stays the user's decision.
- */
-async function tagCommitMessage(): Promise<void> {
-  const types: { label: string; description: string; prefix: string }[] = [
-    { label: "feature", description: "new capability", prefix: "feature" },
-    { label: "bug fix", description: "something was broken", prefix: "bug fix" },
-    { label: "hotfix", description: "urgent production fix", prefix: "hotfix" },
-    { label: "refactor", description: "same behaviour, better code", prefix: "refactor" },
-    { label: "performance", description: "faster or lighter", prefix: "perf" },
-    { label: "security", description: "closes a hole", prefix: "security" },
-    { label: "test", description: "tests only", prefix: "test" },
-    { label: "docs", description: "documentation only", prefix: "docs" },
-    { label: "style", description: "UI or formatting", prefix: "style" },
-    { label: "chore", description: "tooling, build, deps", prefix: "chore" },
-  ];
-  const type = await vscode.window.showQuickPick(types, {
-    title: "Blast Radius: commit type",
-    placeHolder: "What kind of change is this?",
-  });
-  if (!type) {
-    return;
-  }
-
-  const title = await vscode.window.showInputBox({
-    title: `Blast Radius: ${type.label}`,
-    prompt: "Name it the way you want it to appear in the FEATURES tab. Reuse the exact name to add to an existing feature.",
-    placeHolder: "get users from db",
-    validateInput: (v) => (v.trim() ? undefined : "A title is required"),
-  });
-  if (!title) {
-    return;
-  }
-
-  const scope = await vscode.window.showInputBox({
-    title: "Blast Radius: scope (optional)",
-    prompt: "Group commits with different titles under one feature, e.g. \"users\". Leave empty to group by title.",
-    placeHolder: "users",
-  });
-  if (scope === undefined) {
-    return;
-  }
-
-  const message = `${type.prefix}${scope.trim() ? `(${scope.trim()})` : ""}: ${title.trim()}`;
-
-  const gitExtension = vscode.extensions.getExtension("vscode.git");
-  const api = gitExtension?.isActive
-    ? gitExtension.exports.getAPI(1)
-    : gitExtension
-      ? (await gitExtension.activate()).getAPI(1)
-      : undefined;
-  const repo = api?.repositories?.[0];
-  if (repo) {
-    repo.inputBox.value = message;
-    await vscode.commands.executeCommand("workbench.view.scm");
-    vscode.window.showInformationMessage(`Commit message ready: "${message}" - review and commit when you are ready.`);
-  } else {
-    await vscode.env.clipboard.writeText(message);
-    vscode.window.showInformationMessage(`No git repository open - copied "${message}" to the clipboard.`);
-  }
 }

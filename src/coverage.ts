@@ -10,6 +10,7 @@
 import * as path from "path";
 import * as vscode from "vscode";
 import { coverageForRange, LcovIndex, parseLcov } from "./lcov";
+import { extractTestIdentifiers, TestReference } from "./test-refs";
 
 const LCOV_CANDIDATES = [
   "coverage/lcov.info",
@@ -26,6 +27,8 @@ export class CoverageProvider {
   private lcov: LcovIndex = new Map();
   /** function name -> test files mentioning it. Only built when lcov is absent. */
   private testMentions = new Map<string, string[]>();
+  /** function name -> test cases that mention it. */
+  private testRefs = new Map<string, TestReference[]>();
   private lcovPath: string | undefined;
 
   get hasRealCoverage(): boolean {
@@ -90,6 +93,10 @@ export class CoverageProvider {
     return this.testMentions.get(name) || [];
   }
 
+  relatedTests(name: string): TestReference[] {
+    return this.testRefs.get(name) || [];
+  }
+
   private parseLcov(root: string, text: string): void {
     this.lcov = parseLcov(root, text);
   }
@@ -108,8 +115,30 @@ export class CoverageProvider {
       try {
         const bytes = await vscode.workspace.fs.readFile(uri);
         const text = Buffer.from(bytes).toString("utf8");
+        const byName = extractTestIdentifiers(text);
+        for (const [name, refs] of byName.entries()) {
+          const list = this.testMentions.get(name) || [];
+          if (!list.includes(uri.fsPath)) {
+            list.push(uri.fsPath);
+          }
+          this.testMentions.set(name, list);
+
+          const next = (this.testRefs.get(name) || []).slice();
+          for (const ref of refs) {
+            next.push({
+              file: uri.fsPath,
+              line: ref.line,
+              name: ref.name,
+            });
+          }
+          this.testRefs.set(name, next);
+        }
+
         for (const match of text.matchAll(/\b[A-Za-z_$][\w$]*\b/g)) {
           const name = match[0];
+          if (this.testRefs.has(name)) {
+            continue;
+          }
           const list = this.testMentions.get(name);
           if (list) {
             if (!list.includes(uri.fsPath)) {
