@@ -77,6 +77,43 @@ The page is [media/graph.html](media/graph.html) - inline `<style>` and `<script
 from cdnjs, no build step. It lives in its own file rather than a TypeScript template
 literal purely so the D3 code's `${}` does not need escaping.
 
+## Setup (first time, after cloning)
+
+Needs **Node 18+**, **git**, and **VS Code 1.85+**.
+
+```bash
+git clone https://github.com/Advik-Gupta/blast-radius.git
+cd blast-radius
+npm run setup          # install deps, compile, restore the demo repo's git history
+```
+
+`npm run setup:demo` is the part worth knowing about: `demo/` is a repo-within-a-repo
+whose 32 commits by 3 authors are what make churn and bus factor real. A parent clone
+cannot carry a nested `.git`, so that history ships as `demo-history.bundle` and is
+unpacked into `demo/.git` by that script. Skip it and the demo still runs, but every
+function reports churn 0 and bus factor 0.
+
+Then either press **F5** in VS Code to run it from source, or install it properly:
+
+```bash
+npm run package        # builds blast-radius-0.1.0.vsix
+code --install-extension blast-radius-0.1.0.vsix
+```
+
+If `code` is not on your PATH: in VS Code run **Shell Command: Install 'code' command in
+PATH** from the palette, or install the `.vsix` through the Extensions panel's `···`
+menu → *Install from VSIX…*. On macOS the CLI also lives at
+`/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code`.
+
+Installing does not affect already-open windows — **quit and reopen VS Code** afterwards.
+
+Check it worked without opening the editor at all:
+
+```bash
+npm run check:risk     # expect: critical 1, high 1, medium 6, low 52
+npm run preview        # opens the graph in a browser
+```
+
 ## Run it
 
 ```bash
