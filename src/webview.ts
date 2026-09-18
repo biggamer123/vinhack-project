@@ -79,7 +79,7 @@ export class GraphPanel {
   }
 
   static toggleSchema(): void {
-    GraphPanel.current?.toggleSchemaView();
+    void GraphPanel.current?.showSchemaView();
   }
 
   private constructor(
@@ -114,25 +114,36 @@ export class GraphPanel {
       return;
     }
     if (msg.type === "schema") {
-      this.toggleSchemaView();
+      void this.showSchemaView();
     }
   }
 
-  private async toggleSchemaView(): Promise<void> {
+  /**
+   * Detect database schemas and push them to the page. Always answers: the page
+   * has its own SCHEMA tab now, so a second request must refresh it rather than
+   * toggle it off. An empty workspace still gets a rendered "nothing found"
+   * page, so the tab is never blank.
+   */
+  private async showSchemaView(): Promise<void> {
     if (!this.ready) {
       return;
     }
-    this.schemaVisible = !this.schemaVisible;
-    if (this.schemaVisible) {
-      const root = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
-      if (!root) {
-        this.schemaVisible = false;
-        return;
-      }
+    this.schemaVisible = true;
+    const root = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+    if (!root) {
+      this.schemaHtml = schemaDiagramHtml([]);
+      this.update();
+      return;
+    }
+    try {
       const schemas = await detectDatabaseSchemas(root);
       this.schemaHtml = schemaDiagramHtml(schemas);
-    } else {
-      this.schemaHtml = "";
+    } catch (err) {
+      this.schemaHtml =
+        '<div style="padding:24px;color:#eee;font-family:system-ui">' +
+        "Schema detection failed: " +
+        String(err) +
+        "</div>";
     }
     this.update();
   }
@@ -165,7 +176,7 @@ export class GraphPanel {
       ...payload,
       focus: this.focusId,
       viewMode: this.schemaVisible ? "schema" : "graph",
-      schemaHtml: this.schemaVisible ? this.schemaHtml : "",
+      schemaHtml: this.schemaHtml,
     });
     this.focusId = undefined; // one-shot: a later refresh should not yank the view back
   }

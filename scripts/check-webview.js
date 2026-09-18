@@ -457,8 +457,8 @@ async function buildPayload() {
   check("GIT shows a lead changer", doc.querySelector("#gitTable tbody td.lead").textContent.trim().length > 1, true);
   check("GIT contribution bars render", doc.querySelectorAll("#gitTable .contrib span").length > 0, true);
 
-  click(doc.querySelector('.tab[data-tab="schema"]'));
-  check("SCHEMA tab returns", doc.getElementById("view-schema").classList.contains("on"), true);
+  click(doc.querySelector('.tab[data-tab="graph"]'));
+  check("GRAPH tab returns", doc.getElementById("view-graph").classList.contains("on"), true);
 
   // rail list: search + select drives the graph selection
   const railSearch = doc.getElementById("railSearch");
@@ -481,7 +481,7 @@ async function buildPayload() {
   click(tip.querySelector('[data-act="git"]'));
   check("tooltip git button opens the GIT tab", doc.getElementById("view-git").classList.contains("on"), true);
   check("GIT tab focuses that function", doc.querySelector(".focusbar").textContent.includes("FOCUSED"), true);
-  click(doc.querySelector('.tab[data-tab="schema"]'));
+  click(doc.querySelector('.tab[data-tab="graph"]'));
 
   // lineage modal
   const lineageBtn = doc.getElementById("lineageBtn");
@@ -505,7 +505,52 @@ async function buildPayload() {
     Number(tr.children[0].textContent),
   );
   check("INDEX sorts risk descending", riskCol[0] >= riskCol[riskCol.length - 1] && riskCol[0] > 0, true);
-  click(doc.querySelector('.tab[data-tab="schema"]'));
+  click(doc.querySelector('.tab[data-tab="graph"]'));
+
+  // ---------------- database schema tab (src/schema.ts feeds this) ----------------
+  const schemaTab = doc.querySelector('.tab[data-tab="schema"]');
+  check("SCHEMA tab exists", !!schemaTab, true);
+  click(schemaTab);
+  check("SCHEMA tab activates", doc.getElementById("view-schema").classList.contains("on"), true);
+  check("SCHEMA tab is never blank", doc.getElementById("schemaBody").textContent.trim().length > 0, true);
+  // This DOM was switched into standalone mode by an earlier check, where schema
+  // detection cannot run - it must say so rather than sit empty.
+  check("SCHEMA tab explains itself in a browser snapshot",
+    doc.getElementById("schemaBody").textContent.includes("VS Code"), true);
+
+  // In a real webview, opening the tab asks the extension host to run detection.
+  const posted4 = [];
+  const dom4 = new JSDOM(html, { runScripts: "outside-only", pretendToBeVisual: true });
+  const w4 = dom4.window;
+  w4.d3 = require("d3");
+  applyDomShims(w4);
+  w4.acquireVsCodeApi = () => ({ postMessage: (m) => posted4.push(m) });
+  global.window = w4;
+  global.document = w4.document;
+  global.SVGElement = w4.SVGElement;
+  w4.eval(script);
+  w4.dispatchEvent(new w4.MessageEvent("message", { data: payload }));
+  await new Promise((r) => setTimeout(r, 300));
+  w4.document.querySelector('.tab[data-tab="schema"]')
+    .dispatchEvent(new w4.MouseEvent("click", { bubbles: true }));
+  check("SCHEMA tab requests detection from the host",
+    posted4.some((m) => m.type === "schema"), true);
+  global.window = window;
+  global.document = window.document;
+  global.SVGElement = window.SVGElement;
+  // and the host's reply (even an empty-workspace one) is rendered
+  window.dispatchEvent(new window.MessageEvent("message", {
+    data: Object.assign({}, payload, {
+      schemaHtml: "<h1>Database Schemas</h1><p>No SQL or NoSQL schema declarations were detected.</p>",
+      viewMode: "schema",
+    }),
+  }));
+  await new Promise((r) => setTimeout(r, 300));
+  check("SCHEMA tab renders the host's reply",
+    doc.getElementById("schemaBody").textContent.includes("No SQL or NoSQL"), true);
+  check("host viewMode:schema focuses the tab",
+    doc.getElementById("view-schema").classList.contains("on"), true);
+  click(doc.querySelector('.tab[data-tab="graph"]'));
 
   console.log(
     failures ? `\n${failures} FAILURE(S)` : "\nall webview checks passed",
