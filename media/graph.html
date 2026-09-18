@@ -127,6 +127,13 @@
   .empty { color: var(--muted); font-size: 8px; line-height: 1.9; }
   .wide { width: 100%; margin-top: 8px; }
   .flag { background: var(--yellow); border: 2px solid #000; padding: 6px; font-size: 8px; margin-top: 8px; line-height: 1.7; }
+  .llm-card {
+    margin-top: 10px; background: #fffdf6; border: 3px solid #000; box-shadow: 4px 4px 0 #000; padding: 10px;
+  }
+  .llm-md-output {
+    width: 100%; min-height: 220px; resize: vertical; border: 2px solid #000; background: #fff; color: var(--ink);
+    font: inherit; font-size: 7.5px; line-height: 1.7; padding: 8px; margin-top: 8px; box-shadow: inset 2px 2px 0 rgba(0,0,0,.1);
+  }
 
   /* ---- index + git tables ---- */
   .sheet { flex: 1; background: var(--cream); overflow: auto; padding: 12px; }
@@ -371,6 +378,7 @@
     <button class="btn" id="isolate">HIDE ORPHANS</button>
     <button class="btn" id="freeze">FREEZE</button>
     <button class="btn" id="reset">FIT VIEW</button>
+    <button class="btn" id="llmMd" style="background:var(--dark);color:#fff">LLM MD</button>
     <button class="btn" id="browser" style="background:var(--blue);color:#fff">OPEN IN BROWSER</button>
   </div>
 
@@ -1105,11 +1113,13 @@ window.addEventListener('error', function (e) {
       ')/10 + ' + r.churnCount + ' - ' + (r.busFactor > 1 ? 2 : 0) + ' = ' + d.score + '</div>';
     html += '<button class="btn wide" id="lineageBtn">VIEW LINEAGE</button>';
     html += '<button class="btn wide" id="gitBtn">GIT HISTORY</button>';
+    html += '<button class="btn wide" id="llmMdBtn">LLM MD</button>';
     if (!standalone) { html += '<button class="btn wide" id="open">OPEN IN EDITOR</button>'; }
 
     $('entry').innerHTML = html;
     $('lineageBtn').onclick = function () { openLineage(d); };
     $('gitBtn').onclick = function () { focusGit(d); };
+    $('llmMdBtn').onclick = function () { renderLlmMarkdown(d); };
     var openBtn = $('open');
     if (openBtn) { openBtn.onclick = function () { vscode.postMessage({ type: 'reveal', id: d.id }); }; }
 
@@ -1137,6 +1147,91 @@ window.addEventListener('error', function (e) {
 
   function totalCommits(r) {
     return (r.authors || []).reduce(function (a, x) { return a + x.commits; }, 0);
+  }
+
+  function formatFunctionList(items) {
+    if (!items || !items.length) { return '- None in this workspace'; }
+    return items.map(function (n) {
+      return '- ' + n.name + ' (' + n.file + ':' + (n.startLine + 1) + ')';
+    }).join('\n');
+  }
+
+  function buildLlmMarkdown(d) {
+    var r = d.risk;
+    var callers = callersOf(d);
+    var callees = calleesOf(d);
+    var lines = [
+      '# ' + d.name,
+      '',
+      '- File: ' + d.file + ':' + (d.startLine + 1),
+      '- Tier: ' + d.tier.toUpperCase(),
+      '- Risk score: ' + d.score,
+      '- Coverage: ' + covText(r),
+      '- Fan-in: ' + r.fanIn,
+      '- Fan-out: ' + d.fanOut,
+      '- Churn 90d: ' + r.churnCount,
+      '- Bus factor: ' + r.busFactor,
+      '',
+      '## Summary',
+      'Selected function in the Blast Radius graph. It has ' + callers.length + ' callers and ' + callees.length + ' direct callees in this workspace.',
+      '',
+      '## Callers',
+      formatFunctionList(callers),
+      '',
+      '## Calls',
+      formatFunctionList(callees),
+      '',
+      '## Risk notes',
+      '- Coverage proxy: ' + (r.coverageIsProxy ? 'yes' : 'no'),
+      '- Git resolved: ' + (r.gitResolved ? 'yes' : 'no'),
+      '- Primary author: ' + ((r.authors && r.authors.length) ? r.authors[0].name + ' (' + r.authors[0].commits + ' commits)' : 'none recorded'),
+      '',
+      '## Score formula',
+      'score = ' + r.fanIn + '*2 + (100-' + (r.coveragePct === null ? 50 : r.coveragePct) + ')/10 + ' + r.churnCount + ' - ' + (r.busFactor > 1 ? 2 : 0) + ' = ' + d.score
+    ];
+    return lines.join('\n');
+  }
+
+  function renderLlmMarkdown(d) {
+    var existing = $('entry').querySelector('#llmMdCard');
+    if (existing) { existing.remove(); }
+
+    var card = document.createElement('div');
+    card.id = 'llmMdCard';
+    card.className = 'llm-card';
+    card.innerHTML = '<div class="cardhead">LLM MD</div>' +
+      '<div class="empty" style="margin-bottom:8px">Copy the markdown for this function and its graph neighborhood.</div>';
+
+    var text = document.createElement('textarea');
+    text.className = 'llm-md-output';
+    text.readOnly = true;
+    text.value = buildLlmMarkdown(d);
+
+    var actionRow = document.createElement('div');
+    actionRow.style.display = 'flex';
+    actionRow.style.gap = '6px';
+    actionRow.style.marginTop = '8px';
+
+    var copy = document.createElement('button');
+    copy.className = 'btn';
+    copy.textContent = 'COPY';
+    copy.onclick = function () {
+      text.focus();
+      text.select();
+      try {
+        document.execCommand('copy');
+        copy.textContent = 'COPIED';
+        setTimeout(function () { copy.textContent = 'COPY'; }, 1100);
+      } catch (err) {
+        copy.textContent = 'COPY FAILED';
+        setTimeout(function () { copy.textContent = 'COPY'; }, 1100);
+      }
+    };
+
+    actionRow.appendChild(copy);
+    card.appendChild(text);
+    card.appendChild(actionRow);
+    $('entry').appendChild(card);
   }
 
   /* --------------------------------------------------------- hover tooltip */
@@ -2126,6 +2221,21 @@ window.addEventListener('error', function (e) {
   });
   $('reset').addEventListener('click', function () { fitView(); });
   $('browser').addEventListener('click', function () { vscode.postMessage({ type: 'browser' }); });
+  $('llmMd').addEventListener('click', function () {
+    if (!selected) {
+      showTip({ clientX: window.innerWidth / 2, clientY: window.innerHeight / 2 }, {
+        name: 'Select a function',
+        risk: { coveragePct: 0, fanIn: 0, churnCount: 0, busFactor: 0 },
+        score: 0,
+        tier: 'low',
+        file: '',
+        startLine: 0,
+        fanOut: 0
+      });
+      return;
+    }
+    renderLlmMarkdown(selected);
+  });
   $('schemaReload').addEventListener('click', function () { requestSchemas(true); });
   $('schemaArrange').addEventListener('click', arrangeDb);
   $('schemaSpread').addEventListener('click', spreadDb);
