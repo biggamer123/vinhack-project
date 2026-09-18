@@ -70,7 +70,9 @@
     "check:risk": "node scripts/check-risk.js demo",
     "check:webview": "node scripts/check-webview.js demo",
     "preview": "node scripts/preview.js demo",
-    "package": "npx --yes @vscode/vsce package --allow-missing-repository --baseContentUrl https://local.invalid/blast-radius --baseImagesUrl https://local.invalid/blast-radius"
+    "package": "npx --yes @vscode/vsce package --allow-missing-repository --baseContentUrl https://local.invalid/blast-radius --baseImagesUrl https://local.invalid/blast-radius",
+    "setup": "npm install && npm run compile && npm run setup:demo",
+    "setup:demo": "node scripts/setup-demo.js"
   },
   "devDependencies": {
     "@types/node": "^20.11.0",
