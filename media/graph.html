@@ -273,6 +273,68 @@
   .commitline .subj { white-space: normal; line-height: 1.6; }
   .expander { display: inline-block; width: 12px; color: var(--muted); }
 
+  /* ---- features view ---- */
+  .fwrap { flex: 1; display: flex; min-height: 0; background: var(--cream); }
+  .flist { width: 420px; flex: none; overflow-y: auto; padding: 12px; border-right: 4px solid #000; }
+  .fdetail { flex: 1; overflow-y: auto; padding: 14px; }
+  .fsummary { background: var(--gb-green); border: 3px solid #000; box-shadow: 4px 4px 0 #000; padding: 9px; font-size: 8px; line-height: 1.9; margin-bottom: 12px; }
+  .fcard {
+    background: #fffdf6; border: 3px solid #000; box-shadow: 4px 4px 0 #000;
+    padding: 9px; margin-bottom: 10px; cursor: pointer; border-left-width: 10px;
+  }
+  .fcard:hover { background: #fff3c2; }
+  .fcard.on { outline: 3px solid var(--blue); outline-offset: 2px; }
+  .fcard .ftitle { font-size: 9px; line-height: 1.6; word-break: break-word; margin: 5px 0; }
+  .fcard .fmeta { font-size: 7px; color: var(--muted); line-height: 1.8; }
+  .typetag { display: inline-block; font-size: 7px; padding: 2px 5px; border: 2px solid #000; margin: 0 4px 3px 0; color: #000; }
+  .avstack { display: inline-flex; gap: 3px; vertical-align: middle; }
+  .avstack i { width: 12px; height: 12px; border: 2px solid #000; display: block; }
+  .fsection { background: #fffdf6; border: 3px solid #000; box-shadow: 4px 4px 0 #000; padding: 10px; margin-bottom: 12px; }
+  .fsection h3 { margin: 0 0 8px; font-size: 9px; }
+  .fline { display: grid; grid-template-columns: 70px 76px 92px 1fr; gap: 8px; font-size: 7.5px; padding: 4px 0; border-bottom: 1px solid #eee3c7; align-items: start; }
+  .fline .subj { white-space: normal; line-height: 1.6; }
+  .frow { display: flex; align-items: center; gap: 8px; font-size: 7.5px; padding: 4px 0; border-bottom: 1px solid #eee3c7; }
+  .frow .grow { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .frow.click { cursor: pointer; }
+  .frow.click:hover { background: var(--yellow); }
+  .guide { font-size: 8px; line-height: 2; }
+  .guide code { background: #fff; border: 2px solid #000; padding: 1px 5px; font-family: inherit; }
+  .typechip { font-size: 7px; padding: 4px 6px; border: 2px solid #000; box-shadow: 2px 2px 0 #000; cursor: pointer; user-select: none; }
+  .typechip.off { opacity: .3; }
+  .node.featdim { opacity: .1; }
+  .node.feathit circle { stroke: var(--blue); stroke-width: 5; }
+
+  /* ---- backups + commands ---- */
+  .tabs { flex-wrap: wrap; }
+  .bwrap { flex: 1; display: flex; min-height: 0; background: var(--cream); }
+  .blist { width: 470px; flex: none; overflow-y: auto; padding: 12px; border-right: 4px solid #000; }
+  .bdetail { flex: 1; overflow-y: auto; padding: 14px; }
+  .bstatus { border: 3px solid #000; box-shadow: 4px 4px 0 #000; padding: 10px; margin-bottom: 12px; font-size: 8px; line-height: 1.9; }
+  .bstatus.on { background: var(--gb-green); }
+  .bstatus.off { background: var(--yellow); }
+  .bstatus .btn { margin: 6px 6px 0 0; }
+  .bcard { background: #fffdf6; border: 3px solid #000; box-shadow: 4px 4px 0 #000; padding: 8px 9px; margin-bottom: 9px; cursor: pointer; border-left-width: 10px; }
+  .bcard:hover { background: #fff3c2; }
+  .bcard.on { outline: 3px solid var(--blue); outline-offset: 2px; }
+  .bcard .btime { font-size: 8px; }
+  .bcard .bmeta { font-size: 7px; color: var(--muted); line-height: 1.8; margin-top: 3px; word-break: break-word; }
+  .trig { display: inline-block; font-size: 7px; padding: 2px 5px; border: 2px solid #000; margin-right: 5px; color: #000; }
+  .cmdbox { background: #17140f; color: #e8f5b0; border: 3px solid #000; padding: 9px; font-family: ui-monospace, Menlo, monospace; font-size: 11px; line-height: 1.5; word-break: break-all; white-space: pre-wrap; margin: 6px 0; }
+  .cmdrow { margin-bottom: 14px; }
+  .cmdrow .cmdhead { display: flex; align-items: center; gap: 8px; font-size: 8px; }
+  .cmdrow .cmdhead .grow { flex: 1; }
+  .cmdrow .explain { font-size: 7.5px; line-height: 1.8; color: #3a3427; }
+  .warnbox { background: var(--fire); border: 3px solid #000; padding: 8px; font-size: 8px; line-height: 1.8; margin: 8px 0; }
+  .tl { background: #fffdf6; border: 3px solid #000; box-shadow: 3px 3px 0 #000; padding: 7px 9px; margin-bottom: 8px; border-left-width: 9px; font-size: 8px; }
+  .tl .tltop { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .tl .tlcmd { font-family: ui-monospace, Menlo, monospace; font-size: 11px; margin: 5px 0 3px; word-break: break-word; }
+  .tl .tlmeta { font-size: 7px; color: var(--muted); line-height: 1.8; word-break: break-word; }
+  .tl .jump { cursor: pointer; text-decoration: underline; color: var(--blue); }
+  .riskbadge { display: inline-block; font-size: 7px; padding: 2px 5px; border: 2px solid #000; color: #fff; }
+  .srcbadge { display: inline-block; font-size: 7px; padding: 2px 5px; border: 2px solid #000; background: #fff; color: #000; }
+  .exitbad { color: var(--dex-red); font-weight: bold; }
+  .featlink { cursor: pointer; }
+
   /* ---- graph marks ---- */
   .link { stroke: #6b6355; stroke-opacity: .45; stroke-width: 1.2; }
   .link.hot { stroke: var(--dex-red); stroke-opacity: .95; stroke-width: 2.4; }
@@ -299,7 +361,10 @@
     <div class="tabs">
       <button class="tab on" data-tab="graph"><i class="dot" style="background:var(--grass)"></i>GRAPH</button>
       <button class="tab" data-tab="index"><i class="dot" style="background:var(--electric)"></i>INDEX</button>
+      <button class="tab" data-tab="features"><i class="dot" style="background:var(--fire)"></i>FEATURES</button>
       <button class="tab" data-tab="git"><i class="dot" style="background:var(--blue)"></i>GIT</button>
+      <button class="tab" data-tab="backups"><i class="dot" style="background:var(--gb-green)"></i>BACKUPS</button>
+      <button class="tab" data-tab="commands"><i class="dot" style="background:var(--dex-red)"></i>COMMANDS</button>
       <button class="tab" data-tab="schema"><i class="dot" style="background:var(--dark)"></i>SCHEMA</button>
     </div>
   </header>
@@ -320,6 +385,25 @@
   <div class="toolbar" id="bar-index" style="display:none">
     <input class="search" id="indexSearch" placeholder="FIND FUNCTION" />
     <span class="btn" style="cursor:default">CLICK A ROW FOR ITS LINEAGE</span>
+  </div>
+
+  <div class="toolbar" id="bar-features" style="display:none">
+    <input class="search" id="featureSearch" placeholder="FIND FEATURE, FILE OR PERSON" style="width:230px" />
+    <button class="btn on" id="featureByFeature">BY FEATURE</button>
+    <button class="btn" id="featureByPerson">BY PERSON</button>
+    <span id="typeChips" style="display:flex;gap:5px;flex-wrap:wrap"></span>
+    <button class="btn" id="featureRefresh" style="background:var(--blue);color:#fff">RE-READ GIT LOG</button>
+  </div>
+
+  <div class="toolbar" id="bar-backups" style="display:none">
+    <input class="search" id="backupSearch" placeholder="FIND BACKUP (BRANCH, COMMIT, FEATURE)" style="width:260px" />
+    <span class="btn" style="cursor:default">LOCAL BRANCH blastradiusbackups - NEVER PUSHED</span>
+  </div>
+
+  <div class="toolbar" id="bar-commands" style="display:none">
+    <input class="search" id="commandSearch" placeholder="FIND COMMAND, PERSON OR COMMIT" style="width:240px" />
+    <button class="btn" id="riskyOnly">RISKY ONLY</button>
+    <span id="sourceChips" style="display:flex;gap:5px;flex-wrap:wrap"></span>
   </div>
 
   <div class="toolbar" id="bar-git" style="display:none">
@@ -384,6 +468,26 @@
         <div class="dbhud" id="dbhud">NO SCHEMAS LOADED</div>
       </div>
       <div class="schema-host" id="schemaBody" style="display:none"></div>
+    </div>
+
+    <div class="view" id="view-features">
+      <div class="fwrap">
+        <div class="flist" id="featureList"></div>
+        <div class="fdetail" id="featureDetail"></div>
+      </div>
+    </div>
+
+    <div class="view" id="view-backups">
+      <div class="bwrap">
+        <div class="blist" id="backupList"></div>
+        <div class="bdetail" id="backupDetail"></div>
+      </div>
+    </div>
+
+    <div class="view" id="view-commands">
+      <div class="bwrap">
+        <div class="bdetail" id="commandList" style="max-width:1100px"></div>
+      </div>
     </div>
 
     <div class="view" id="view-git">
@@ -460,7 +564,7 @@ window.addEventListener('error', function (e) {
   var query = '', tab = 'graph', lineageStack = [], authorColor = new Map();
   // Must match PROTOCOL_VERSION in src/protocol.ts. A payload older than this
   // means the running extension host predates this page - see the banner.
-  var EXPECTED_PROTOCOL = 5;
+  var EXPECTED_PROTOCOL = 7;
 
   var $ = function (id) { return document.getElementById(id); };
   var esc = function (s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); };
@@ -468,7 +572,7 @@ window.addEventListener('error', function (e) {
   /* ------------------------------------------------------------------ tabs */
   function showTab(name) {
     tab = name;
-    ['graph', 'index', 'git', 'schema'].forEach(function (t) {
+    ['graph', 'index', 'features', 'git', 'schema', 'backups', 'commands'].forEach(function (t) {
       $('view-' + t).classList.toggle('on', t === name);
       $('bar-' + t).style.display = t === name ? 'flex' : 'none';
       document.querySelector('.tab[data-tab="' + t + '"]').classList.toggle('on', t === name);
@@ -477,6 +581,8 @@ window.addEventListener('error', function (e) {
     if (name === 'index') { renderIndex(); }
     if (name === 'git') { renderGit(); }
     if (name === 'schema') { requestSchemas(false); }
+    if (name === 'features') { requestFeatures(false); if (!backupData && !standalone) { requestBackups(); } }
+    if (name === 'backups' || name === 'commands') { requestBackups(); }
   }
 
   /**
@@ -890,6 +996,9 @@ window.addEventListener('error', function (e) {
     renderRail();
   }
 
+  /** Function ids of the feature being shown in the graph, or null. */
+  var featureHighlight = null;
+
   function highlight() {
     var related = new Set();
     if (selected) {
@@ -900,6 +1009,8 @@ window.addEventListener('error', function (e) {
       });
     }
     nodeG.selectAll('g.node')
+      .classed('feathit', function (d) { return !!featureHighlight && featureHighlight.has(d.id); })
+      .classed('featdim', function (d) { return !!featureHighlight && !featureHighlight.has(d.id); })
       .classed('sel', function (d) { return selected && d.id === selected.id; })
       .classed('dim', function (d) { return selected && !related.has(d.id); });
     linkG.selectAll('line')
@@ -1554,8 +1665,555 @@ window.addEventListener('error', function (e) {
   });
   $('gitSearch').addEventListener('input', renderGit);
 
+
+  /* ------------------------------------------------------------ features */
+  var featureData = null, featuresAsked = false, featureMode = 'feature';
+  var featureSel = null, personSel = null, typeOff = new Set();
+  var TYPE_COLOR = {
+    'feature': '#78C850', 'bug fix': '#EE8130', 'hotfix': '#DC0A2D', 'refactor': '#3B4CCA',
+    'performance': '#F8D030', 'security': '#7C538C', 'test': '#9BBC0F', 'docs': '#c9bfa6',
+    'style': '#f4a6c0', 'chore': '#b8b0a0'
+  };
+
+  function requestFeatures(force) {
+    if (!force && (featureData || featuresAsked)) { if (featureData) { renderFeatures(); } return; }
+    featuresAsked = true;
+    if (standalone) {
+      if (!featureData) {
+        $('featureList').innerHTML = '<div class="empty">No feature data in this snapshot. Re-run "Open Graph in Browser".</div>';
+      }
+      return;
+    }
+    $('featureList').innerHTML = '<div class="empty">Reading the git log...</div>';
+    vscode.postMessage({ type: 'features', force: !!force });
+  }
+
+  function typeTag(type) {
+    var light = type === 'hotfix' || type === 'refactor' || type === 'security';
+    return '<span class="typetag" style="background:' + (TYPE_COLOR[type] || '#ccc') +
+      (light ? ';color:#fff' : '') + '">' + esc(String(type).toUpperCase()) + '</span>';
+  }
+
+  function featureMatches(f, q) {
+    if (typeOff.has(f.primaryType)) { return false; }
+    if (!q) { return true; }
+    if (f.name.toLowerCase().indexOf(q) !== -1) { return true; }
+    if (f.authors.some(function (a) { return a.name.toLowerCase().indexOf(q) !== -1; })) { return true; }
+    if (f.files.some(function (x) { return x.path.toLowerCase().indexOf(q) !== -1; })) { return true; }
+    return f.functions.some(function (fn) { return fn.name.toLowerCase().indexOf(q) !== -1; });
+  }
+
+  function renderTypeChips() {
+    var present = {};
+    featureData.features.forEach(function (f) { present[f.primaryType] = (present[f.primaryType] || 0) + 1; });
+    $('typeChips').innerHTML = (featureData.types || []).filter(function (t) { return present[t]; }).map(function (t) {
+      return '<span class="typechip' + (typeOff.has(t) ? ' off' : '') + '" data-type="' + esc(t) + '" style="background:' +
+        (TYPE_COLOR[t] || '#ccc') + '">' + esc(t.toUpperCase()) + ' ' + present[t] + '</span>';
+    }).join('');
+    $('typeChips').querySelectorAll('.typechip').forEach(function (chip) {
+      chip.onclick = function () {
+        var t = chip.dataset.type;
+        if (typeOff.has(t)) { typeOff.delete(t); } else { typeOff.add(t); }
+        renderFeatures();
+      };
+    });
+  }
+
+  function guideHtml() {
+    return '<div class="fsection guide"><h3>WRITE COMMITS AS FEATURES</h3>' +
+      'Start a commit message with a type and a colon:<br/>' +
+      '<code>feature: get users from db</code><br/>' +
+      '<code>bug fix: users list crashes on empty page</code><br/>' +
+      '<code>refactor(users): split the repository layer</code><br/><br/>' +
+      'Commits with the <b>same title</b> join one feature. Add a <b>(scope)</b> to group different titles together.<br/>' +
+      'Types: feature, bug fix, hotfix, refactor, perf, security, test, docs, style, chore.<br/><br/>' +
+      'Shortcut: the tag button in Source Control, or the command <b>Blast Radius: Write Tagged Commit Message</b>, ' +
+      'fills the message box for you. It never commits.</div>';
+  }
+
+  function renderFeatures() {
+    if (!featureData) { return; }
+    var d = featureData;
+    renderTypeChips();
+    var q = ($('featureSearch').value || '').trim().toLowerCase();
+    var pct = d.totalCommits ? Math.round((d.taggedCommits / d.totalCommits) * 100) : 0;
+
+    var summary = '<div class="fsummary">' +
+      '<b>' + d.features.length + ' FEATURE' + (d.features.length === 1 ? '' : 'S') + '</b> from ' +
+      d.taggedCommits + ' of ' + d.totalCommits + ' commits (' + pct + '% tagged)<br/>' +
+      d.people.length + ' contributor' + (d.people.length === 1 ? '' : 's') +
+      ' &nbsp;|&nbsp; function history available for ' + d.functionsWithHistory + '/' + d.functionsTotal +
+      (d.error ? '<br/><b>' + esc(d.error) + '</b>' : '') + '</div>';
+
+    if (!d.features.length) {
+      var untagged = (d.untagged || []).slice(0, 12).map(function (u) {
+        return '<div class="fline"><span class="sha">' + esc(u.hash) + '</span><span>' + dateText(u.t) +
+          '</span><span>' + esc(u.author) + '</span><span class="subj">' + esc(u.subject) + '</span></div>';
+      }).join('');
+      $('featureList').innerHTML = summary + '<div class="empty">No tagged commits yet - nothing to group into features.</div>';
+      $('featureDetail').innerHTML = guideHtml() +
+        (untagged ? '<div class="fsection"><h3>RECENT UNTAGGED COMMITS</h3>' + untagged + '</div>' : '');
+      return;
+    }
+
+    if (featureMode === 'person') { renderPeople(summary, q); return; }
+
+    var shown = d.features.filter(function (f) { return featureMatches(f, q); });
+    $('featureList').innerHTML = summary + (shown.map(function (f) {
+      return '<div class="fcard' + (featureSel === f.key ? ' on' : '') + '" data-key="' + esc(f.key) +
+        '" style="border-left-color:' + (TYPE_COLOR[f.primaryType] || '#000') + '">' +
+        Object.keys(f.typeCounts).map(typeTag).join('') +
+        '<div class="ftitle">' + esc(f.name) + '</div>' +
+        '<div class="fmeta">' + f.commits.length + ' commit' + (f.commits.length === 1 ? '' : 's') +
+        ' &nbsp;|&nbsp; ' + f.files.length + ' files &nbsp;|&nbsp; ' + f.functions.length + ' functions<br/>' +
+        '<span class="avstack">' + f.authors.slice(0, 6).map(function (a) {
+          return '<i title="' + esc(a.name) + '" style="background:' + colorFor(a.email) + '"></i>';
+        }).join('') + '</span> ' + esc(f.authors.map(function (a) { return a.name; }).join(', ')) +
+        '<br/>' + dateText(f.firstChange) + ' - ' + dateText(f.lastChange) + '</div></div>';
+    }).join('') || '<div class="empty">No features match.</div>');
+
+    $('featureList').querySelectorAll('.fcard').forEach(function (card) {
+      card.onclick = function () { featureSel = card.dataset.key; renderFeatures(); };
+    });
+
+    var current = shown.filter(function (f) { return f.key === featureSel; })[0] || null;
+    $('featureDetail').innerHTML = current ? featureDetailHtml(current) : guideHtml();
+    if (current) { wireFeatureDetail(current); }
+  }
+
+  function featureDetailHtml(f) {
+    var total = f.commits.length;
+    var people = f.authors.map(function (a) {
+      return '<div class="frow"><i style="width:12px;height:12px;border:2px solid #000;background:' + colorFor(a.email) + '"></i>' +
+        '<span class="grow">' + esc(a.name) + ' <span style="color:var(--muted)">' + esc(a.email) + '</span></span>' +
+        '<span class="bar" style="width:120px;height:10px"><i style="width:' + Math.round((a.commits / total) * 100) +
+        '%;background:' + colorFor(a.email) + '"></i></span><span>' + a.commits + '</span></div>';
+    }).join('');
+    var commits = f.commits.map(function (c) {
+      return '<div class="fline"><span class="sha">' + esc(c.hash) + '</span><span>' + dateText(c.t) + '</span>' +
+        '<span>' + esc(c.author) + '</span><span class="subj">' + typeTag(c.type) + esc(c.title) +
+        (c.breaking ? ' <b style="color:var(--dex-red)">BREAKING</b>' : '') +
+        '<br/><span style="color:var(--muted)">' + c.files.length + ' file' + (c.files.length === 1 ? '' : 's') + '</span></span></div>';
+    }).join('');
+    var files = f.files.map(function (x) {
+      return '<div class="frow"><span class="grow">' + esc(x.path) + '</span><span>' + x.commits + ' commit' + (x.commits === 1 ? '' : 's') + '</span></div>';
+    }).join('');
+    var fns = f.functions.length
+      ? f.functions.map(function (fn) {
+          return '<div class="frow click" data-id="' + esc(fn.id) + '"><i class="swatch" style="width:10px;height:10px;border:2px solid #000;background:' +
+            (TIER_COLOR[fn.tier] || '#ccc') + '"></i><span class="grow">' + esc(fn.name) +
+            ' <span style="color:var(--muted)">' + esc(fn.file) + ':' + (fn.startLine + 1) + '</span></span><span>risk ' + fn.score + '</span></div>';
+        }).join('')
+      : '<div class="empty">No indexed function\'s line history includes these commits - they may only touch non-code files, ' +
+        'or history is still loading.</div>';
+
+    return '<div class="fsection">' + Object.keys(f.typeCounts).map(typeTag).join('') +
+      '<div class="mon" style="margin:6px 0">' + esc(f.name) + '</div>' +
+      '<div class="path">' + (f.scope ? 'scope: ' + esc(f.scope) + ' &nbsp;|&nbsp; ' : '') + total + ' commits &nbsp;|&nbsp; ' +
+      dateText(f.firstChange) + ' - ' + dateText(f.lastChange) + '</div>' +
+      (f.functions.length ? '<button class="btn" id="featureShowGraph">SHOW ' + f.functions.length + ' FUNCTIONS IN GRAPH</button>' : '') +
+      '</div>' +
+      '<div class="fsection"><h3>WHO WORKED ON IT</h3>' + people + '</div>' +
+      '<div class="fsection"><h3>FUNCTIONS (' + f.functions.length + ')</h3>' + fns + '</div>' +
+      '<div class="fsection"><h3>FILES (' + f.files.length + ')</h3>' + files + '</div>' +
+      '<div class="fsection"><h3>COMMITS</h3>' + commits + '</div>' +
+      featureRestorePointsHtml(f);
+  }
+
+  /** Backups taken while HEAD was at one of this feature's commits. */
+  function featureRestorePointsHtml(f) {
+    if (!backupData || !backupData.backups) { return ''; }
+    var hashes = f.commits.map(function (c) { return c.hash; });
+    var points = backupData.backups.filter(function (b) {
+      return hashes.some(function (h) { return h && b.head.indexOf(h) === 0; });
+    });
+    if (!points.length) { return ''; }
+    return '<div class="fsection"><h3>RESTORE POINTS FROM THIS FEATURE (' + points.length + ')</h3>' +
+      points.map(function (b) {
+        return '<div class="frow click jump" data-backup="' + esc(b.sha) + '"><span class="trig" style="background:' +
+          (TRIGGER_COLOR[b.trigger] || '#ccc') + '">' + esc(b.trigger.toUpperCase()) + '</span>' +
+          '<span class="grow">' + stamp(b.t) + ' - ' + esc(b.branch) + ' @ ' + esc(b.head.slice(0, 8)) + '</span></div>';
+      }).join('') + '</div>';
+  }
+
+  function wireFeatureDetail(f) {
+    $('featureDetail').querySelectorAll('.jump[data-backup]').forEach(function (el) {
+      el.onclick = function (e) { e.stopPropagation(); jumpToBackup(el.dataset.backup); };
+    });
+    var btn = $('featureShowGraph');
+    if (btn) {
+      btn.onclick = function () {
+        featureHighlight = new Set(f.functions.map(function (fn) { return fn.id; }));
+        showTab('graph');
+        highlight();
+        $('hud').innerHTML = 'FEATURE: ' + esc(f.name.toUpperCase()) + '<br/>' + f.functions.length +
+          ' FUNCTIONS HIGHLIGHTED - click empty canvas to clear';
+      };
+    }
+    $('featureDetail').querySelectorAll('.frow.click[data-id]').forEach(function (row) {
+      row.onclick = function () {
+        var n = byId.get(row.dataset.id);
+        if (n) { select(n, false); openLineage(n); }
+      };
+    });
+  }
+
+  function renderPeople(summary, q) {
+    var d = featureData;
+    var people = d.people.filter(function (p) {
+      if (!q) { return true; }
+      return p.name.toLowerCase().indexOf(q) !== -1 || p.features.some(function (f) { return f.name.toLowerCase().indexOf(q) !== -1; });
+    });
+    $('featureList').innerHTML = summary + (people.map(function (p) {
+      return '<div class="fcard' + (personSel === p.email ? ' on' : '') + '" data-email="' + esc(p.email) +
+        '" style="border-left-color:' + colorFor(p.email) + '">' +
+        '<div class="ftitle">' + esc(p.name) + '</div>' +
+        '<div class="fmeta">' + p.features.length + ' feature' + (p.features.length === 1 ? '' : 's') +
+        ' &nbsp;|&nbsp; ' + p.commits + ' tagged commits<br/>' + esc(p.email) + '</div></div>';
+    }).join('') || '<div class="empty">No people match.</div>');
+    $('featureList').querySelectorAll('.fcard').forEach(function (card) {
+      card.onclick = function () { personSel = card.dataset.email; renderFeatures(); };
+    });
+
+    var person = people.filter(function (p) { return p.email === personSel; })[0];
+    if (!person) { $('featureDetail').innerHTML = '<div class="fsection guide">Pick a person to see the features they worked on.</div>'; return; }
+    $('featureDetail').innerHTML = '<div class="fsection"><div class="mon">' + esc(person.name) + '</div>' +
+      '<div class="path">' + esc(person.email) + ' &nbsp;|&nbsp; ' + person.commits + ' tagged commits</div></div>' +
+      '<div class="fsection"><h3>FEATURES</h3>' + person.features.map(function (f) {
+        return '<div class="frow click" data-key="' + esc(f.key) + '">' + typeTag(f.primaryType) +
+          '<span class="grow">' + esc(f.name) + '</span><span>' + f.commits + ' commit' + (f.commits === 1 ? '' : 's') + '</span></div>';
+      }).join('') + '</div>';
+    $('featureDetail').querySelectorAll('.frow.click').forEach(function (row) {
+      row.onclick = function () {
+        featureMode = 'feature';
+        featureSel = row.dataset.key;
+        $('featureByFeature').classList.add('on');
+        $('featureByPerson').classList.remove('on');
+        renderFeatures();
+      };
+    });
+  }
+
+  $('featureSearch').addEventListener('input', renderFeatures);
+  $('featureRefresh').addEventListener('click', function () { requestFeatures(true); });
+  $('featureByFeature').addEventListener('click', function () {
+    featureMode = 'feature';
+    $('featureByFeature').classList.add('on'); $('featureByPerson').classList.remove('on');
+    renderFeatures();
+  });
+  $('featureByPerson').addEventListener('click', function () {
+    featureMode = 'person';
+    $('featureByPerson').classList.add('on'); $('featureByFeature').classList.remove('on');
+    renderFeatures();
+  });
+
+
+  /* ------------------------------------------------------ backups + commands */
+  var backupData = null, backupsAsked = false, backupSel = null;
+  var riskyOnly = false, sourceOff = new Set();
+  var TRIGGER_COLOR = { interval: '#3B4CCA', commit: '#78C850', manual: '#FFCB05', 'pre-restore': '#EE8130' };
+  var RISK_STYLE = {
+    destructive: { bg: '#DC0A2D', label: 'DESTRUCTIVE' },
+    rewrite: { bg: '#7C538C', label: 'REWRITES HISTORY' },
+    remote: { bg: '#3B4CCA', label: 'REMOTE' },
+    'moves-head': { bg: '#6b6355', label: 'MOVES HEAD' },
+    safe: { bg: '#78C850', label: '' }
+  };
+  var SOURCE_LABEL = { terminal: 'TERMINAL', reflog: 'GIT', backup: 'BACKUP', 'push-guard': 'PUSH GUARD', setup: 'SETUP' };
+
+  function requestBackups() {
+    if (backupData) { if (tab === 'backups') { renderBackups(); } else { renderCommands(); } }
+    if (standalone) {
+      if (!backupData) {
+        var none = '<div class="empty">No backup data in this snapshot. Re-run "Open Graph in Browser".</div>';
+        $('backupList').innerHTML = none;
+        $('commandList').innerHTML = none;
+      }
+      return;
+    }
+    if (!backupData && !backupsAsked) {
+      $('backupList').innerHTML = '<div class="empty">Reading backups and the git log...</div>';
+    }
+    backupsAsked = true;
+    vscode.postMessage({ type: 'backups' });
+  }
+
+  function ago(t) {
+    if (!t) { return '--'; }
+    var s = Math.round((Date.now() - t) / 1000);
+    var future = s < 0;
+    s = Math.abs(s);
+    var text = s < 60 ? s + 's' : s < 3600 ? Math.round(s / 60) + 'm' : s < 86400 ? Math.round(s / 3600) + 'h' : Math.round(s / 86400) + 'd';
+    return future ? 'in ' + text : text + ' ago';
+  }
+  function stamp(t) {
+    if (!t) { return '--'; }
+    return new Date(t).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  }
+
+  /** Copy from the webview; fall back to the host clipboard where the browser refuses. */
+  function copyText(text, button) {
+    var done = function () {
+      if (button) {
+        var old = button.textContent;
+        button.textContent = 'COPIED';
+        setTimeout(function () { button.textContent = old; }, 1400);
+      }
+    };
+    var viaHost = function () { vscode.postMessage({ type: 'copy', text: text }); done(); };
+    var viaSelection = function () {
+      try {
+        var ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed'; ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        var ok = document.execCommand && document.execCommand('copy');
+        ta.remove();
+        if (ok) { done(); } else { viaHost(); }
+      } catch (e) { viaHost(); }
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(done, viaSelection);
+    } else {
+      viaSelection();
+    }
+  }
+
+  function featureChip(f) {
+    if (!f) { return ''; }
+    return '<span class="featlink" data-feature="' + esc(f.key) + '">' + typeTag(f.type) + esc(f.name) + '</span>';
+  }
+  function wireFeatureLinks(root) {
+    root.querySelectorAll('.featlink[data-feature]').forEach(function (el) {
+      el.onclick = function (e) {
+        e.stopPropagation();
+        featureMode = 'feature';
+        featureSel = el.dataset.feature;
+        showTab('features');
+      };
+    });
+  }
+  function jumpToBackup(sha) {
+    backupSel = sha;
+    showTab('backups');
+    var card = $('backupList').querySelector('.bcard[data-sha="' + sha + '"]');
+    if (card && card.scrollIntoView) { card.scrollIntoView({ block: 'center' }); }
+  }
+
+  function statusHtml(d) {
+    if (!d.available) {
+      return '<div class="bstatus off"><b>BACKUPS UNAVAILABLE</b><br/>' + esc(d.reason || '') + '</div>';
+    }
+    var h = d.hooks || {};
+    if (!d.enabled) {
+      return '<div class="bstatus off"><b>BACKUPS ARE OFF FOR THIS REPOSITORY</b><br/>' +
+        'Turning them on snapshots the working tree onto the local <b>' + esc(d.branch) + '</b> branch every ' +
+        d.intervalMinutes + ' minutes and after every commit, without touching your files, your staging area or HEAD.<br/>' +
+        'It installs a pre-push hook that keeps that branch off every remote, and a post-commit hook. ' +
+        'Hooks already in the repository are kept and still run.' +
+        (standalone ? '' : '<br/><button class="btn" id="backupsEnable" style="background:var(--blue);color:#fff">TURN ON BACKUPS</button>') +
+        (d.backups.length ? '<br/>' + d.backups.length + ' earlier backups are still available below.' : '') +
+        '</div>';
+    }
+    var guard;
+    if (h.managedExternally) {
+      guard = '<div class="warnbox"><b>PUSH GUARD NOT INSTALLED.</b> This repository sets core.hooksPath, so hooks live in a ' +
+        'versioned folder Blast Radius will not write to. Until you add these lines, <b>git push --all could publish the backup branch</b>:' +
+        '<div class="cmdbox">' + esc(d.manualInstructions) + '</div></div>';
+    } else if (h.prePush !== 'installed') {
+      guard = '<div class="warnbox"><b>PUSH GUARD MISSING.</b> The pre-push hook is ' + esc(h.prePush || 'missing') +
+        '. Turn backups off and on again to reinstall it.</div>';
+    } else {
+      guard = 'push guard: <b>installed</b>' + (h.chained && h.chained.length ? ' (your existing ' + esc(h.chained.join(', ')) + ' hook still runs first)' : '');
+    }
+    return '<div class="bstatus on"><b>BACKUPS ON</b> &nbsp;|&nbsp; every ' + d.intervalMinutes + ' min and on every commit<br/>' +
+      'last backup: ' + ago(d.lastBackupAt) + (d.nextBackupAt ? ' &nbsp;|&nbsp; next: ' + ago(d.nextBackupAt) : '') +
+      ' &nbsp;|&nbsp; ' + d.backups.length + ' backups on <b>' + esc(d.branch) + '</b><br/>' + guard +
+      (d.error ? '<br/><b>last error: ' + esc(d.error) + '</b>' : '') +
+      (standalone ? '' : '<br/><button class="btn" id="backupNow" style="background:var(--blue);color:#fff">BACK UP NOW</button>' +
+        '<button class="btn" id="backupsDisable">TURN OFF</button>') +
+      '</div>';
+  }
+
+  function renderBackups() {
+    if (!backupData) { return; }
+    var d = backupData;
+    var q = ($('backupSearch').value || '').trim().toLowerCase();
+    var list = d.backups.filter(function (b) {
+      if (!q) { return true; }
+      return [b.sha, b.branch, b.head, b.headSubject, b.trigger, b.note, b.feature ? b.feature.name : '']
+        .join(' ').toLowerCase().indexOf(q) !== -1;
+    });
+
+    $('backupList').innerHTML = statusHtml(d) + (list.map(function (b) {
+      return '<div class="bcard' + (backupSel === b.sha ? ' on' : '') + '" data-sha="' + esc(b.sha) +
+        '" style="border-left-color:' + (TRIGGER_COLOR[b.trigger] || '#000') + '">' +
+        '<div class="btime"><span class="trig" style="background:' + (TRIGGER_COLOR[b.trigger] || '#ccc') +
+        (b.trigger === 'interval' ? ';color:#fff' : '') + '">' + esc(b.trigger.toUpperCase()) + '</span>' +
+        stamp(b.t) + ' <span style="color:var(--muted)">(' + ago(b.t) + ')</span></div>' +
+        '<div class="bmeta">' + esc(b.branch) + ' @ ' + esc(b.head.slice(0, 8)) + ' - ' + esc(b.headSubject || '') + '<br/>' +
+        b.uncommittedFiles + ' uncommitted file' + (b.uncommittedFiles === 1 ? '' : 's') +
+        ' &nbsp;|&nbsp; vs previous backup: ' + b.filesChanged + ' files +' + b.insertions + ' -' + b.deletions +
+        (b.note ? '<br/>' + esc(b.note) : '') + '</div>' +
+        (b.feature ? '<div style="margin-top:4px">' + featureChip(b.feature) + '</div>' : '') +
+        '</div>';
+    }).join('') || (d.available ? '<div class="empty">No backups yet.</div>' : ''));
+
+    var wire = function (id, type) { var el = $(id); if (el) { el.onclick = function () { vscode.postMessage({ type: type }); }; } };
+    wire('backupsEnable', 'backupsEnable');
+    wire('backupsDisable', 'backupsDisable');
+    wire('backupNow', 'backupNow');
+    $('backupList').querySelectorAll('.bcard').forEach(function (card) {
+      card.onclick = function () { backupSel = card.dataset.sha; renderBackups(); };
+    });
+    wireFeatureLinks($('backupList'));
+
+    var sel = d.backups.filter(function (b) { return b.sha === backupSel; })[0];
+    $('backupDetail').innerHTML = sel ? backupDetailHtml(sel) : backupGuideHtml();
+    if (sel) { wireBackupDetail(sel); }
+  }
+
+  function backupGuideHtml() {
+    return '<div class="fsection guide"><h3>BACKUPS FOR DIRE SITUATIONS</h3>' +
+      'Pick a backup to get a command that brings your files back to exactly that moment.<br/><br/>' +
+      'Every restore first backs up what you have now, so a restore is never a one-way door - ' +
+      'it appears here as a <b>PRE-RESTORE</b> backup you can restore the same way.<br/><br/>' +
+      'Restores never move your branch or rewrite history: the files come back, HEAD stays put, and you review and commit.<br/><br/>' +
+      'The <b>COMMANDS</b> tab shows what was run between backups, so you can find the backup from just before something broke.</div>';
+  }
+
+  function backupDetailHtml(b) {
+    var c = b.commands;
+    var newer = backupData.backups.filter(function (x) { return x.t > b.t; }).sort(function (x, y) { return x.t - y.t; })[0];
+    var until = newer ? newer.t : Infinity;
+    var after = backupData.timeline.filter(function (e) {
+      return e.source !== 'backup' && e.t >= b.t && e.t < until;
+    });
+    var cmd = function (label, text, explain, warn) {
+      return '<div class="cmdrow"><div class="cmdhead"><b class="grow">' + label + '</b>' +
+        '<button class="btn copy" data-text="' + esc(text) + '">COPY</button></div>' +
+        '<div class="cmdbox">' + esc(text) + '</div><div class="explain">' + explain + '</div>' +
+        (warn ? '<div class="warnbox">' + warn + '</div>' : '') + '</div>';
+    };
+    return '<div class="fsection"><span class="trig" style="background:' + (TRIGGER_COLOR[b.trigger] || '#ccc') +
+      (b.trigger === 'interval' ? ';color:#fff' : '') + '">' + esc(b.trigger.toUpperCase()) + '</span>' +
+      '<div class="mon" style="margin:6px 0">' + stamp(b.t) + '</div>' +
+      '<div class="path">backup ' + esc(b.sha.slice(0, 12)) + ' &nbsp;|&nbsp; taken on ' + esc(b.branch) + ' at ' +
+      esc(b.head.slice(0, 8)) + ' "' + esc(b.headSubject) + '" &nbsp;|&nbsp; by ' + esc(b.author) + '</div>' +
+      (b.feature ? featureChip(b.feature) : '') + '</div>' +
+
+      '<div class="fsection"><h3>GET BACK TO THIS BACKUP</h3>' +
+      '<div class="explain" style="font-size:8px;margin-bottom:10px">Run these from anywhere inside the repository, in a normal terminal ' +
+      '(macOS/Linux, or Git Bash on Windows).</div>' +
+      cmd('1. SEE WHAT WOULD CHANGE (read-only)', c.preview,
+        'Lists every file that differs between your working tree and this backup. Changes nothing.') +
+      cmd('2. RESTORE (recommended)', c.restore,
+        'Saves your current state as a PRE-RESTORE backup first, then puts every file that existed in this backup back exactly as it was. ' +
+        'Files you created after the backup are left alone. HEAD and your branch do not move.') +
+      cmd('3. EXACT RESTORE', c.exact,
+        'Same as 2, and also deletes files that did not exist in this backup (gitignored files such as node_modules and .env are never touched).',
+        'Deletes untracked files created after this backup. They are included in the PRE-RESTORE backup, so this is still undoable.') +
+      cmd('ONE FILE ONLY', c.file,
+        'Replace &lt;path&gt; with the file to bring back. Does not take a safety backup, so copy the file aside first if it matters.') +
+      '</div>' +
+
+      '<div class="fsection"><h3>WHAT HAPPENED AFTER THIS BACKUP (' + after.length + ')</h3>' +
+      (after.length ? after.slice().reverse().map(timelineHtml).join('') :
+        '<div class="empty">Nothing recorded between this backup and the next one.</div>') + '</div>';
+  }
+
+  function wireBackupDetail(b) {
+    $('backupDetail').querySelectorAll('.copy').forEach(function (btn) {
+      btn.onclick = function () { copyText(btn.dataset.text, btn); };
+    });
+    wireFeatureLinks($('backupDetail'));
+    wireTimelineLinks($('backupDetail'));
+  }
+
+  function timelineHtml(e) {
+    var r = RISK_STYLE[e.risk] || RISK_STYLE.safe;
+    var border = e.risk === 'safe' ? '#000' : r.bg;
+    var meta = [];
+    if (e.who) { meta.push(esc(e.who)); }
+    if (e.detail) { meta.push(esc(e.detail)); }
+    if (e.sha && e.source !== 'backup') { meta.push('HEAD ' + esc(e.sha.slice(0, 8)) + (e.subject ? ' "' + esc(e.subject) + '"' : '')); }
+    return '<div class="tl" style="border-left-color:' + border + '">' +
+      '<div class="tltop"><span class="srcbadge">' + (SOURCE_LABEL[e.source] || e.source) + '</span>' +
+      (r.label ? '<span class="riskbadge" style="background:' + r.bg + '">' + r.label + '</span>' : '') +
+      '<span>' + stamp(e.t) + '</span>' +
+      (e.exitCode !== undefined && e.exitCode !== null
+        ? '<span class="' + (e.exitCode === 0 ? '' : 'exitbad') + '">exit ' + e.exitCode + '</span>' : '') +
+      (e.feature ? featureChip(e.feature) : '') + '</div>' +
+      '<div class="tlcmd">' + esc(e.title) + '</div>' +
+      (e.why ? '<div class="tlmeta"><b>' + esc(e.why) + '</b></div>' : '') +
+      '<div class="tlmeta">' + meta.join(' &nbsp;|&nbsp; ') + '</div>' +
+      (e.backupSha ? '<div class="tlmeta"><span class="jump" data-backup="' + esc(e.backupSha) + '">open this backup</span></div>' : '') +
+      (e.restorePoint && e.risk !== 'safe'
+        ? '<div class="tlmeta">restore point from before this: <span class="jump" data-backup="' + esc(e.restorePoint.sha) + '">backup ' +
+          esc(e.restorePoint.sha.slice(0, 8)) + ' (' + ago(e.restorePoint.t) + ')</span></div>' : '') +
+      '</div>';
+  }
+
+  function wireTimelineLinks(root) {
+    root.querySelectorAll('.jump[data-backup]').forEach(function (el) {
+      el.onclick = function () { jumpToBackup(el.dataset.backup); };
+    });
+  }
+
+  function renderCommands() {
+    if (!backupData) { return; }
+    var d = backupData;
+    var counts = {};
+    d.timeline.forEach(function (e) { counts[e.source] = (counts[e.source] || 0) + 1; });
+    $('sourceChips').innerHTML = Object.keys(SOURCE_LABEL).filter(function (k) { return counts[k]; }).map(function (k) {
+      return '<span class="typechip' + (sourceOff.has(k) ? ' off' : '') + '" data-source="' + k + '" style="background:#fff">' +
+        SOURCE_LABEL[k] + ' ' + counts[k] + '</span>';
+    }).join('');
+    $('sourceChips').querySelectorAll('.typechip').forEach(function (chip) {
+      chip.onclick = function () {
+        var k = chip.dataset.source;
+        if (sourceOff.has(k)) { sourceOff.delete(k); } else { sourceOff.add(k); }
+        renderCommands();
+      };
+    });
+
+    var q = ($('commandSearch').value || '').trim().toLowerCase();
+    var rows = d.timeline.filter(function (e) {
+      if (sourceOff.has(e.source)) { return false; }
+      if (riskyOnly && e.risk === 'safe') { return false; }
+      if (!q) { return true; }
+      return [e.title, e.who, e.detail, e.sha || '', e.subject || '', e.feature ? e.feature.name : '']
+        .join(' ').toLowerCase().indexOf(q) !== -1;
+    });
+    var risky = d.timeline.filter(function (e) { return e.risk === 'destructive' || e.risk === 'rewrite'; }).length;
+
+    $('commandList').innerHTML =
+      '<div class="fsummary">' + d.timeline.length + ' EVENTS &nbsp;|&nbsp; ' + risky + ' destructive or history-rewriting' +
+      '<br/>Sources: the git reflog (every command that moved HEAD - commit, reset, rebase, amend, checkout, merge, pull)' +
+      (d.terminalCapture
+        ? ', plus git commands typed into VS Code terminals with their exit codes.'
+        : '. Terminal capture needs a newer VS Code with shell integration.') +
+      '<br/>Commands typed outside VS Code that do not move HEAD (such as git clean) cannot be seen by git and are not listed.</div>' +
+      (rows.map(timelineHtml).join('') || '<div class="empty">Nothing matches.</div>');
+    wireTimelineLinks($('commandList'));
+    wireFeatureLinks($('commandList'));
+  }
+
+  $('backupSearch').addEventListener('input', renderBackups);
+  $('commandSearch').addEventListener('input', renderCommands);
+  $('riskyOnly').addEventListener('click', function (e) {
+    riskyOnly = !riskyOnly;
+    e.target.classList.toggle('on', riskyOnly);
+    renderCommands();
+  });
+  // Relative times ("3m ago") go stale; refresh them while a backups view is open.
+  setInterval(function () {
+    if (tab === 'backups' && backupData) { renderBackups(); }
+  }, 30000);
+
   /* ------------------------------------------------------------- controls */
-  svg.on('click', function () { selected = null; highlight(); renderRail(); });
+  svg.on('click', function () { selected = null; featureHighlight = null; highlight(); renderRail(); });
   $('search').addEventListener('input', function (e) {
     query = e.target.value.trim().toLowerCase();
     applyFilter();
@@ -1639,6 +2297,13 @@ window.addEventListener('error', function (e) {
       $('staleHost').style.display = 'block';
     }
     if (msg.schema) { renderSchema(msg.schema); }
+    if (msg.features) { featureData = msg.features; if (tab === 'features') { renderFeatures(); } }
+    if (msg.backups) {
+      backupData = msg.backups;
+      if (tab === 'backups') { renderBackups(); }
+      if (tab === 'commands') { renderCommands(); }
+      if (tab === 'features') { renderFeatures(); }
+    }
     if (msg.viewMode === 'schema') { showTab('schema'); }
     var prev = new Map(nodes.map(function (n) { return [n.id, n]; }));
     nodes = msg.nodes.map(function (n, i) {
