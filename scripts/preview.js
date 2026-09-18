@@ -114,10 +114,7 @@ function walk(dir, acc = []) {
     (hasLcov ? "lcov coverage" : "proxy coverage (no lcov.info)") +
     (repo ? "" : " · no git history");
 
-  const template = fs.readFileSync(
-    path.join(__dirname, "..", "media", "graph.html"),
-    "utf8",
-  );
+  const template = require("../out/pageTemplate").loadPageTemplate(path.join(__dirname, ".."));
   const { scanDatabaseSchemas, inferSchemaRelations } = require("../out/schema");
   // Features, built the same way the extension's browser export builds them.
   const { readCommits, buildFeatures } = require("../out/features");

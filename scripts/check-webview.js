@@ -152,8 +152,7 @@ async function buildPayload() {
   const payload = await buildPayload();
 
   // Load the real page, minus the CSP meta and the CDN <script> (d3 comes from node_modules).
-  let html = fs
-    .readFileSync(path.join(__dirname, "..", "media", "graph.html"), "utf8")
+  let html = require("../out/pageTemplate").loadPageTemplate(path.join(__dirname, ".."))
     .replace(/<meta http-equiv="Content-Security-Policy"[^>]*>/, "")
     .replace(/<script [^>]*src="https:\/\/cdnjs[^"]*"[^>]*><\/script>/, "")
     .replace(/\{\{nonce\}\}/g, "test")
@@ -176,7 +175,8 @@ async function buildPayload() {
   window.d3 = require("d3");
   window.acquireVsCodeApi = () => ({ postMessage: (m) => posted.push(m) });
 
-  const script = /<script nonce="test">([\s\S]*?)<\/script>/.exec(html)[1];
+  // Every inline script, in page order: the shared modules first, then the page.
+  const script = [...html.matchAll(/<script nonce="test">([\s\S]*?)<\/script>/g)].map((m) => m[1]).join("\n;\n");
   window.eval(script);
 
   check(
@@ -309,10 +309,7 @@ async function buildPayload() {
   // --- the browser snapshot: boot the REAL generated file, with no vscode host ---
   // (regression: the stub used to be injected after the page script, so
   // acquireVsCodeApi() threw and the page hung on "booting dex…")
-  const template = fs.readFileSync(
-    path.join(__dirname, "..", "media", "graph.html"),
-    "utf8",
-  );
+  const template = require("../out/pageTemplate").loadPageTemplate(path.join(__dirname, ".."));
   const standaloneHtml = removeCdnScripts(
     buildStandaloneHtml(template, payload, "test stamp"),
   );
@@ -666,8 +663,10 @@ async function buildPayload() {
   check("spread uses even column spacing", new Set(gaps).size <= 1, true);
   check("relations survive the spread",
     doc.querySelectorAll("#dblinks path[marker-end]").length, sampleSchema.relations.length);
-  check("spread reports what it did",
-    doc.getElementById("dbhud").textContent.includes("SPREAD"), true);
+  check("spread reports groups and the unrelated side",
+    /RELATED GROUP.*UNRELATED TABLE/.test(doc.getElementById("dbhud").textContent), true);
+  check("related tables get a labelled group frame",
+    [...doc.querySelectorAll("#dbcanvas .dbgroup:not(.lonely) .glabel")].some((g) => g.textContent.includes("RELATED GROUP")), true);
 
   // ---------------- features view ----------------
   const firstFn = payload.nodes[0];
@@ -1029,6 +1028,32 @@ async function buildPayload() {
     const entryText = wT.document.getElementById("entry").textContent;
     check("snapshot shows where the test lives", entryText.includes("test/format.test.js:3"), true);
     check("snapshot has no dead OPEN link", !!wT.document.querySelector("#entry [data-test-file]"), false);
+    global.window = window; global.document = window.document; global.SVGElement = window.SVGElement;
+  }
+
+  // ---------------- docker builder -> browser ----------------
+  {
+    const postedD = [];
+    const domD = new JSDOM(html, { runScripts: "outside-only", pretendToBeVisual: true });
+    const wD = domD.window;
+    wD.d3 = require("d3");
+    applyDomShims(wD);
+    wD.acquireVsCodeApi = () => ({ postMessage: (m) => postedD.push(m) });
+    global.window = wD; global.document = wD.document; global.SVGElement = wD.SVGElement;
+    wD.eval(script);
+    wD.dispatchEvent(new wD.MessageEvent("message", { data: Object.assign({}, payload, { protocol: PROTOCOL_VERSION }) }));
+    await new Promise((r) => setTimeout(r, 200));
+    const dD = wD.document;
+    const clickD = (el) => el.dispatchEvent(new wD.MouseEvent("click", { bubbles: true }));
+    clickD(dD.querySelector('.tab[data-tab="devops"]'));
+    clickD(dD.getElementById("dvBuilder"));
+    clickD(dD.querySelector('.palitem[data-template="go"]'));
+    clickD(dD.querySelector('.palitem[data-template="postgres"]'));
+    check("builder adds services in the webview", dD.querySelectorAll("#dvStage .crate").length, 2);
+    clickD(dD.getElementById("dvBrowser"));
+    const req = postedD.find((m) => m.type === "browser");
+    check("OPEN IN BROWSER from the builder asks for the devops builder view", req && `${req.tab}/${req.devopsMode}`, "devops/builder");
+    check("...and carries the stack with it", req && req.stack.services.map((sv) => sv.template).join(","), "go,postgres");
     global.window = window; global.document = window.document; global.SVGElement = window.SVGElement;
   }
 

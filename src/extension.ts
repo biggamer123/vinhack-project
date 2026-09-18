@@ -113,6 +113,10 @@ export async function activate(
     vscode.commands.registerCommand("blastradius.backupsDisable", () => backupsController.disable()),
     vscode.commands.registerCommand("blastradius.backupNow", () => backupsController.backupNow("manual", "manual backup")),
     vscode.commands.registerCommand("blastradius.exportFeatureDocs", () => exportAllFeatureDocs(graph, risk)),
+    vscode.commands.registerCommand("blastradius.openDevops", () => GraphPanel.showDevops(extensionContext, graph, risk)),
+    vscode.commands.registerCommand("blastradius.openDevopsInBrowser", () =>
+      openInBrowser(extensionContext, graph, risk, undefined, { focusTab: "devops", devopsMode: "builder" }),
+    ),
     vscode.commands.registerCommand("blastradius.showSchemas", async () => {
       GraphPanel.toggleSchema();
     }),
@@ -190,9 +194,13 @@ async function indexWorkspace(): Promise<void> {
   const files = await vscode.workspace.findFiles(SOURCE_GLOB, EXCLUDE_GLOB);
   if (files.length === 0) {
     log(`no parseable source files found (looked for ${SOURCE_GLOB})`);
-    vscode.window.showWarningMessage(
-      "Blast Radius: no .js/.jsx/.ts/.tsx files found in this workspace.",
-    );
+    void vscode.window
+      .showInformationMessage("Blast Radius: no code in this folder yet. Set up a Docker project with the DevOps builder?", "Open DevOps Builder")
+      .then((choice) => {
+        if (choice) {
+          GraphPanel.showDevops(extensionContext, graph, risk);
+        }
+      });
     GraphPanel.refresh();
     return;
   }

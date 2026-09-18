@@ -244,6 +244,15 @@
     border: 3px solid #000; box-shadow: 4px 4px 0 #000; user-select: none;
   }
   .tablecard.hot { box-shadow: 4px 4px 0 var(--dex-red), 6px 6px 0 #000; }
+  .dbgroup {
+    position: absolute; border: 3px dashed #000; background: rgba(155, 188, 15, .10);
+    pointer-events: none;
+  }
+  .dbgroup.lonely { background: rgba(107, 99, 85, .08); }
+  .dbgroup .glabel {
+    position: absolute; left: 10px; top: -12px; background: var(--cream); border: 2px solid #000;
+    padding: 2px 7px; font-size: 8px; white-space: nowrap;
+  }
   .tablecard .th {
     background: var(--dex-red); color: #fff; padding: 7px 8px; font-size: 9px;
     cursor: grab; display: flex; align-items: center; gap: 6px;
@@ -335,6 +344,53 @@
   .exitbad { color: var(--dex-red); font-weight: bold; }
   .featlink { cursor: pointer; }
 
+  /* ---- devops: containers and luggage ---- */
+  .dvwrap { flex: 1; display: flex; min-height: 0; background: var(--cream); }
+  .dvmain { flex: 1; overflow: auto; padding: 18px; position: relative; }
+  .dvside { width: 440px; flex: none; overflow-y: auto; padding: 12px; border-left: 4px solid #000; background: var(--cream); }
+  .ship {
+    position: relative; border: 4px solid #000; box-shadow: 6px 6px 0 #000; margin: 26px 0 30px; padding: 46px 70px 26px 22px;
+    background: repeating-linear-gradient(90deg, #b5452f 0 14px, #9c3a27 14px 18px); min-height: 240px;
+  }
+  .ship.build { background: repeating-linear-gradient(90deg, #3a6ea5 0 14px, #2f5c8a 14px 18px); }
+  .ship.drop { outline: 4px dashed var(--yellow); outline-offset: 4px; }
+  .ship .plate { position: absolute; left: 18px; top: -16px; background: var(--yellow); border: 3px solid #000; padding: 5px 10px; font-size: 9px; box-shadow: 3px 3px 0 #000; }
+  .ship .doors { position: absolute; right: 0; top: 0; bottom: 0; width: 52px; border-left: 4px solid #000; background: repeating-linear-gradient(90deg, rgba(0,0,0,.18) 0 3px, transparent 3px 24px); }
+  .ship .doors i { position: absolute; left: 10px; right: 10px; height: 5px; background: #d9d9d9; border: 2px solid #000; }
+  .ship .hold { position: relative; min-height: 180px; }
+  .ship .emptyhold { color: #fff; text-shadow: 2px 2px 0 #000; font-size: 9px; padding: 40px 10px; text-align: center; }
+  .crate {
+    position: absolute; width: 190px; background: #d8a45a; border: 3px solid #000; box-shadow: 4px 4px 0 #000; cursor: grab;
+    background-image: repeating-linear-gradient(0deg, rgba(0,0,0,.08) 0 2px, transparent 2px 22px); user-select: none;
+  }
+  .crate.sel { outline: 3px solid var(--yellow); outline-offset: 3px; }
+  .crate .handle { position: absolute; left: 70px; top: -12px; width: 44px; height: 12px; border: 3px solid #000; border-bottom: none; }
+  .crate .band { height: 10px; border-bottom: 3px solid #000; }
+  .crate .cname { font-size: 9px; padding: 6px 8px 2px; background: rgba(255,253,246,.85); margin: 6px 6px 0; border: 2px solid #000; }
+  .crate .ctech { font-size: 7px; padding: 3px 8px; margin: 0 6px; background: rgba(255,253,246,.85); border: 2px solid #000; border-top: none; }
+  .crate .ctags { display: flex; flex-wrap: wrap; gap: 3px; padding: 6px; }
+  .crate .ctag { font-size: 6.5px; background: #fffdf6; border: 2px solid #000; padding: 1px 4px; }
+  .crate .cwarn { position: absolute; right: -10px; top: -10px; background: var(--fire); border: 2px solid #000; font-size: 7px; padding: 2px 5px; }
+  .crate .cx { position: absolute; right: 4px; top: 12px; font-size: 9px; cursor: pointer; background: #fff; border: 2px solid #000; padding: 0 3px; }
+  .layer { position: absolute; left: 0; font-size: 7px; color: #fff; text-shadow: 1px 1px 0 #000; }
+  .dvlinks { position: absolute; inset: 0; pointer-events: none; overflow: visible; }
+  .barrels { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
+  .barrel { background: #6b6355; color: #fff; border: 3px solid #000; border-radius: 10px / 6px; padding: 6px 9px; font-size: 7px; box-shadow: 3px 3px 0 #000; }
+  .loose { display: inline-block; margin: 8px 10px 0 0; border: 3px dashed #000; padding: 8px 10px; font-size: 8px; background: #fffdf6; }
+  .palette { width: 250px; flex: none; overflow-y: auto; padding: 12px; border-right: 4px solid #000; background: var(--cream); }
+  .palgroup { font-size: 8px; color: var(--muted); margin: 12px 0 6px; }
+  .palitem { display: flex; align-items: center; gap: 7px; border: 3px solid #000; background: #d8a45a; box-shadow: 3px 3px 0 #000; padding: 6px 7px; margin-bottom: 7px; cursor: grab; font-size: 8px; }
+  .palitem i { width: 12px; height: 12px; border: 2px solid #000; flex: none; }
+  .palitem small { display: block; font-size: 6.5px; color: #3a3427; margin-top: 2px; }
+  .filetabs { display: flex; flex-wrap: wrap; gap: 4px; margin: 8px 0; }
+  .filetabs .btn { font-size: 7px; padding: 4px 6px; }
+  pre.code { background: #17140f; color: #e8f5b0; border: 3px solid #000; padding: 9px; font-size: 11px; line-height: 1.45; overflow: auto; max-height: 420px; margin: 6px 0; white-space: pre; }
+  pre.code .ln { color: #6b7040; user-select: none; display: inline-block; width: 30px; }
+  .formrow { display: grid; grid-template-columns: 110px 1fr; gap: 6px; align-items: center; font-size: 8px; margin: 6px 0; }
+  .formrow input, .formrow select { font: inherit; font-size: 8px; padding: 4px; border: 2px solid #000; background: #fffdf6; }
+  .stagepipe { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; margin: 6px 0; }
+  .stagepipe span { font-size: 7px; border: 2px solid #000; background: #fffdf6; padding: 3px 5px; }
+
   /* ---- graph marks ---- */
   .link { stroke: #6b6355; stroke-opacity: .45; stroke-width: 1.2; }
   .link.hot { stroke: var(--dex-red); stroke-opacity: .95; stroke-width: 2.4; }
@@ -365,6 +421,7 @@
       <button class="tab" data-tab="git"><i class="dot" style="background:var(--blue)"></i>GIT</button>
       <button class="tab" data-tab="backups"><i class="dot" style="background:var(--gb-green)"></i>BACKUPS</button>
       <button class="tab" data-tab="commands"><i class="dot" style="background:var(--dex-red)"></i>COMMANDS</button>
+      <button class="tab" data-tab="devops"><i class="dot" style="background:#b5452f"></i>DEVOPS</button>
       <button class="tab" data-tab="schema"><i class="dot" style="background:var(--dark)"></i>SCHEMA</button>
     </div>
   </header>
@@ -405,6 +462,19 @@
     <input class="search" id="commandSearch" placeholder="FIND COMMAND, PERSON OR COMMIT" style="width:240px" />
     <button class="btn" id="riskyOnly">RISKY ONLY</button>
     <span id="sourceChips" style="display:flex;gap:5px;flex-wrap:wrap"></span>
+  </div>
+
+  <div class="toolbar" id="bar-devops" style="display:none">
+    <button class="btn on" id="dvProject">PROJECT</button>
+    <button class="btn" id="dvBuilder">BUILDER</button>
+    <span id="dvProjectTools" style="display:flex;gap:6px"><button class="btn" id="dvRescan" style="background:var(--blue);color:#fff">RESCAN</button></span>
+    <span id="dvBuilderTools" style="display:none;gap:6px;align-items:center">
+      <button class="btn on" id="dvModeDev">DEVELOPMENT</button>
+      <button class="btn" id="dvModeProd">PRODUCTION</button>
+      <button class="btn" id="dvClear">CLEAR</button>
+      <button class="btn" id="dvWrite" style="background:var(--blue);color:#fff">WRITE FILES TO WORKSPACE</button>
+    </span>
+    <button class="btn" id="dvBrowser" style="background:var(--dark);color:#fff">OPEN IN BROWSER</button>
   </div>
 
   <div class="toolbar" id="bar-git" style="display:none">
@@ -491,6 +561,18 @@
       </div>
     </div>
 
+    <div class="view" id="view-devops">
+      <div class="dvwrap" id="dvProjectView">
+        <div class="dvmain" id="dvShips"></div>
+        <div class="dvside" id="dvDetail"></div>
+      </div>
+      <div class="dvwrap" id="dvBuilderView" style="display:none">
+        <div class="palette" id="dvPalette"></div>
+        <div class="dvmain" id="dvStage"></div>
+        <div class="dvside" id="dvOut"></div>
+      </div>
+    </div>
+
     <div class="view" id="view-git">
       <div class="sheet">
         <div class="legend" id="gitLegend"></div>
@@ -536,6 +618,7 @@
   </div>
 
 <script nonce="{{nonce}}" src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<script nonce="{{nonce}}">/*@@PAGE_MODULES@@*/</script>
 <script nonce="{{nonce}}">
 window.addEventListener('error', function (e) {
   var hud = document.getElementById('hud');
@@ -565,7 +648,7 @@ window.addEventListener('error', function (e) {
   var query = '', tab = 'graph', lineageStack = [], authorColor = new Map();
   // Must match PROTOCOL_VERSION in src/protocol.ts. A payload older than this
   // means the running extension host predates this page - see the banner.
-  var EXPECTED_PROTOCOL = 8;
+  var EXPECTED_PROTOCOL = 9;
 
   var $ = function (id) { return document.getElementById(id); };
   var esc = function (s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); };
@@ -573,7 +656,7 @@ window.addEventListener('error', function (e) {
   /* ------------------------------------------------------------------ tabs */
   function showTab(name) {
     tab = name;
-    ['graph', 'index', 'features', 'git', 'schema', 'backups', 'commands'].forEach(function (t) {
+    ['graph', 'index', 'features', 'git', 'devops', 'schema', 'backups', 'commands'].forEach(function (t) {
       $('view-' + t).classList.toggle('on', t === name);
       $('bar-' + t).style.display = t === name ? 'flex' : 'none';
       document.querySelector('.tab[data-tab="' + t + '"]').classList.toggle('on', t === name);
@@ -584,6 +667,7 @@ window.addEventListener('error', function (e) {
     if (name === 'schema') { requestSchemas(false); }
     if (name === 'features') { requestFeatures(false); if (!backupData && !standalone) { requestBackups(); } }
     if (name === 'backups' || name === 'commands') { requestBackups(); }
+    if (name === 'devops') { requestDevops(); }
   }
 
   /**
@@ -631,19 +715,18 @@ window.addEventListener('error', function (e) {
       return;
     }
 
-    // Lay tables out in columns, tallest first, so long tables do not overlap.
+    // Build every card first, then place them using their rendered heights:
+    // a height estimated from the field count is too small once rows pad and
+    // long source paths wrap, and that is what made tables overlap.
     var sorted = data.tables.slice().sort(function (a, b) { return b.fields.length - a.fields.length; });
-    var colX = 40, colY = 40, colW = 270, maxH = 0, perCol = 0;
     sorted.forEach(function (t) {
-      var h = 34 + Math.min(t.fields.length, 12) * 17 + 22;
-      if (colY + h > 900 && perCol > 0) { colX += colW; colY = 40; perCol = 0; }
-      dbNodes.push({ table: t, x: colX, y: colY, w: 230, h: h });
-      colY += h + 34;
-      perCol++;
-      maxH = Math.max(maxH, colY);
+      var n = { table: t, x: 0, y: 0, w: 230, h: estimateCardHeight(t) };
+      dbNodes.push(n);
+      n.el = buildCard(n);
+      canvas.appendChild(n.el);
     });
-
-    dbNodes.forEach(function (n) { canvas.appendChild(buildCard(n)); });
+    measureCards();
+    packColumns();
     drawRelations();
     showDbMessage(data.tables.length + ' TABLES  ' + (data.relations || []).length + ' RELATIONS' +
       '  ' + data.filesScanned + ' FILES SCANNED');
@@ -738,46 +821,185 @@ window.addEventListener('error', function (e) {
     var wrap = $('dbwrap');
     var maxX = Math.max.apply(null, dbNodes.map(function (n) { return n.x + n.w; }));
     var maxY = Math.max.apply(null, dbNodes.map(function (n) { return n.y + n.h; }));
+    $('dbcanvas').querySelectorAll('.dbgroup').forEach(function (g) {
+      maxX = Math.max(maxX, g.offsetLeft + g.offsetWidth);
+      maxY = Math.max(maxY, g.offsetTop + g.offsetHeight);
+    });
     var k = Math.min((wrap.clientWidth - 60) / maxX, (wrap.clientHeight - 60) / maxY, 1);
     dbZoom = { k: Math.max(0.2, k), x: 20, y: 20 };
     applyDbTransform();
   }
 
+  function estimateCardHeight(t) {
+    return 40 + Math.min(t.fields.length, 12) * 20 + (t.fields.length > 12 ? 20 : 0) + 34;
+  }
+
+  /** Real rendered height of each card; the estimate only stands in where nothing renders. */
+  function measureCards() {
+    dbNodes.forEach(function (n) {
+      var h = n.el ? n.el.offsetHeight : 0;
+      n.h = h > 0 ? h : estimateCardHeight(n.table);
+      var w = n.el ? n.el.offsetWidth : 0;
+      n.w = w > 0 ? w : 230;
+    });
+  }
+
+  function placeCard(n) {
+    if (n.el) {
+      n.el.style.left = n.x + 'px';
+      n.el.style.top = n.y + 'px';
+    }
+  }
+
+  function clearGroups() {
+    $('dbcanvas').querySelectorAll('.dbgroup').forEach(function (g) { g.remove(); });
+  }
+
+  /** Compact layout: tallest first, packed into columns of bounded height. */
+  function packColumns() {
+    clearGroups();
+    var x = 40, y = 40, colW = 0, perCol = 0, limit = 1100;
+    dbNodes.forEach(function (n) {
+      if (y + n.h > limit && perCol > 0) { x += colW + 60; y = 40; colW = 0; perCol = 0; }
+      n.x = x; n.y = y;
+      placeCard(n);
+      y += n.h + 40;
+      colW = Math.max(colW, n.w);
+      perCol++;
+    });
+  }
+
   function arrangeDb() {
-    if (schemaData) { renderSchema(schemaData); }
+    if (!dbNodes.length) { return; }
+    measureCards();
+    packColumns();
+    drawRelations();
+    fitDb();
+    showDbMessage(dbNodes.length + ' TABLES ARRANGED');
   }
 
   /**
-   * Even grid: every table gets the same generous cell, so nothing crowds and
-   * the relation curves have room to be followed by eye. Cell size comes from
-   * the tallest card, so rows line up however uneven the tables are.
+   * Tables that reference each other, grouped. Each group is ordered breadth-first
+   * from its most-connected table, so linked tables end up next to each other.
+   */
+  function schemaGroups() {
+    var byName = new Map(dbNodes.map(function (n) { return [n.table.name, n]; }));
+    var adj = new Map(dbNodes.map(function (n) { return [n.table.name, new Set()]; }));
+    var relCount = 0;
+    ((schemaData && schemaData.relations) || []).forEach(function (r) {
+      if (!byName.has(r.from) || !byName.has(r.to) || r.from === r.to) { return; }
+      adj.get(r.from).add(r.to);
+      adj.get(r.to).add(r.from);
+      relCount++;
+    });
+
+    var seen = new Set(), groups = [];
+    dbNodes.forEach(function (start) {
+      if (seen.has(start.table.name)) { return; }
+      var stack = [start.table.name], members = [];
+      seen.add(start.table.name);
+      while (stack.length) {
+        var name = stack.pop();
+        members.push(name);
+        adj.get(name).forEach(function (next) {
+          if (!seen.has(next)) { seen.add(next); stack.push(next); }
+        });
+      }
+      // breadth-first from the hub
+      var hub = members.slice().sort(function (a, b) { return adj.get(b).size - adj.get(a).size; })[0];
+      var order = [], visited = new Set([hub]), queue = [hub];
+      while (queue.length) {
+        var cur = queue.shift();
+        order.push(byName.get(cur));
+        Array.from(adj.get(cur)).sort(function (a, b) { return adj.get(b).size - adj.get(a).size; })
+          .forEach(function (next) { if (!visited.has(next)) { visited.add(next); queue.push(next); } });
+      }
+      groups.push(order);
+    });
+
+    return {
+      related: groups.filter(function (g) { return g.length > 1; })
+        .sort(function (a, b) { return b.length - a.length; }),
+      unrelated: groups.filter(function (g) { return g.length === 1; })
+        .map(function (g) { return g[0]; })
+        .sort(function (a, b) { return b.table.fields.length - a.table.fields.length; }),
+      relCount: relCount
+    };
+  }
+
+  /**
+   * Lay nodes on a grid inside a box starting at (ox, oy). Row heights come from
+   * the tallest card in each row and column widths from the widest card, so
+   * nothing can overlap however uneven the tables are.
+   */
+  function gridLayout(nodes, cols, ox, oy, gapX, gapY) {
+    var colW = [], rowH = [];
+    nodes.forEach(function (n, i) {
+      var c = i % cols, r = Math.floor(i / cols);
+      colW[c] = Math.max(colW[c] || 0, n.w);
+      rowH[r] = Math.max(rowH[r] || 0, n.h);
+    });
+    var xs = [ox], ys = [oy];
+    for (var c = 1; c < colW.length; c++) { xs[c] = xs[c - 1] + colW[c - 1] + gapX; }
+    for (var r = 1; r < rowH.length; r++) { ys[r] = ys[r - 1] + rowH[r - 1] + gapY; }
+    nodes.forEach(function (n, i) {
+      n.x = xs[i % cols];
+      n.y = ys[Math.floor(i / cols)];
+      placeCard(n);
+    });
+    var width = xs[colW.length - 1] + colW[colW.length - 1] - ox;
+    var height = ys[rowH.length - 1] + rowH[rowH.length - 1] - oy;
+    return { width: width, height: height };
+  }
+
+  function drawGroup(x, y, w, h, label, lonely) {
+    var g = document.createElement('div');
+    g.className = 'dbgroup' + (lonely ? ' lonely' : '');
+    g.style.left = x + 'px'; g.style.top = y + 'px';
+    g.style.width = w + 'px'; g.style.height = h + 'px';
+    g.innerHTML = '<span class="glabel">' + esc(label) + '</span>';
+    $('dbcanvas').insertBefore(g, $('dbcanvas').firstChild);
+  }
+
+  /**
+   * SPREAD OUT: related tables grouped in framed clusters on the left, tables with
+   * no detected relation in their own column on the right, generous even gaps.
    */
   function spreadDb() {
     if (!dbNodes.length) { return; }
-    var wrap = $('dbwrap');
-    var aspect = Math.max(0.5, (wrap.clientWidth || 1200) / (wrap.clientHeight || 800));
-    var cols = Math.max(1, Math.round(Math.sqrt(dbNodes.length * aspect)));
-    var cellW = Math.max.apply(null, dbNodes.map(function (n) { return n.w; })) + 120;
-    var cellH = Math.max.apply(null, dbNodes.map(function (n) { return n.h; })) + 90;
+    measureCards();
+    clearGroups();
+    var groups = schemaGroups();
+    var GAP_X = 70, GAP_Y = 64, PAD = 40, BETWEEN = 110;
+    var x = 40, y = 40, shelfH = 0, regionRight = 40, maxShelfW = 1700;
 
-    // Biggest tables first, so the busiest ones land top-left where the eye starts.
-    var ordered = dbNodes.slice().sort(function (a, b) {
-      return b.table.fields.length - a.table.fields.length;
+    groups.related.forEach(function (members, gi) {
+      var cols = Math.max(1, Math.ceil(Math.sqrt(members.length)));
+      var size = gridLayout(members, cols, 0, 0, GAP_X, GAP_Y); // measure the box first
+      var boxW = size.width + PAD * 2, boxH = size.height + PAD * 2;
+      if (x > 40 && x + boxW > 40 + maxShelfW) { x = 40; y += shelfH + BETWEEN; shelfH = 0; }
+      gridLayout(members, cols, x + PAD, y + PAD, GAP_X, GAP_Y);
+      var links = 0;
+      var names = new Set(members.map(function (m) { return m.table.name; }));
+      ((schemaData && schemaData.relations) || []).forEach(function (r) { if (names.has(r.from) && names.has(r.to)) { links++; } });
+      drawGroup(x, y, boxW, boxH, 'RELATED GROUP ' + (gi + 1) + ' - ' + members.length + ' TABLES, ' + links + ' LINK' + (links === 1 ? '' : 'S'), false);
+      x += boxW + BETWEEN;
+      shelfH = Math.max(shelfH, boxH);
+      regionRight = Math.max(regionRight, x - BETWEEN);
     });
 
-    ordered.forEach(function (n, i) {
-      n.x = 40 + (i % cols) * cellW;
-      n.y = 40 + Math.floor(i / cols) * cellH;
-      var card = $('dbcanvas').querySelector('.tablecard[data-name="' + cssEscape(n.table.name) + '"]');
-      if (card) {
-        card.style.left = n.x + 'px';
-        card.style.top = n.y + 'px';
-      }
-    });
+    if (groups.unrelated.length) {
+      var ux = groups.related.length ? regionRight + BETWEEN * 1.6 : 40;
+      var ucols = groups.related.length ? Math.min(2, groups.unrelated.length) : Math.max(1, Math.ceil(Math.sqrt(groups.unrelated.length)));
+      var usize = gridLayout(groups.unrelated, ucols, ux + PAD, 40 + PAD, GAP_X, GAP_Y);
+      drawGroup(ux, 40, usize.width + PAD * 2, usize.height + PAD * 2,
+        'NO DETECTED RELATIONS - ' + groups.unrelated.length + ' TABLE' + (groups.unrelated.length === 1 ? '' : 'S'), true);
+    }
 
     drawRelations();
     fitDb();
-    showDbMessage(dbNodes.length + ' TABLES SPREAD OVER ' + cols + ' COLUMN' + (cols === 1 ? '' : 'S'));
+    showDbMessage(groups.related.length + ' RELATED GROUP' + (groups.related.length === 1 ? '' : 'S') + ', ' +
+      groups.unrelated.length + ' UNRELATED TABLE' + (groups.unrelated.length === 1 ? '' : 'S') + ' ON THE SIDE');
   }
 
   /** Table names come from SQL identifiers, but quote them safely anyway. */
@@ -2280,6 +2502,488 @@ window.addEventListener('error', function (e) {
     if (tab === 'backups' && backupData) { renderBackups(); }
   }, 30000);
 
+
+  /* ---------------------------------------------------------------- devops */
+  var devopsData = null, devopsAsked = false, dvMode = 'project', dvSel = null;
+  var KIND_COLOR = { frontend: '#3B4CCA', backend: '#78C850', database: '#336791', cache: '#D82C20', queue: '#FF6600', proxy: '#009639', tool: '#6b6355', runtime: '#78C850', service: '#6b6355' };
+  var LAYER_ORDER = ['proxy', 'tool', 'frontend', 'backend', 'runtime', 'service', 'queue', 'cache', 'database'];
+
+  function requestDevops() {
+    renderDevops();
+    if (standalone || devopsAsked) { return; }
+    devopsAsked = true;
+    vscode.postMessage({ type: 'devops' });
+  }
+
+  function setDvMode(mode) {
+    dvMode = mode;
+    $('dvProject').classList.toggle('on', mode === 'project');
+    $('dvBuilder').classList.toggle('on', mode === 'builder');
+    $('dvProjectView').style.display = mode === 'project' ? 'flex' : 'none';
+    $('dvBuilderView').style.display = mode === 'builder' ? 'flex' : 'none';
+    $('dvProjectTools').style.display = mode === 'project' && !standalone ? 'flex' : 'none';
+    $('dvBuilderTools').style.display = mode === 'builder' ? 'flex' : 'none';
+    $('dvWrite').style.display = standalone ? 'none' : '';
+    renderDevops();
+  }
+
+  function renderDevops() {
+    if (dvMode === 'builder') { renderBuilder(); return; }
+    renderProject();
+  }
+
+  /** Crates laid out by layer: entry points on top, data at the bottom. Returns the hold height. */
+  function layoutCrates(hold, items) {
+    var rows = {};
+    items.forEach(function (it) {
+      var key = LAYER_ORDER.indexOf(it.role) === -1 ? 'service' : it.role;
+      var band = key === 'database' || key === 'cache' || key === 'queue' ? 'data' : key === 'backend' || key === 'runtime' || key === 'service' ? 'app' : 'edge';
+      (rows[band] = rows[band] || []).push(it);
+    });
+    var y = 10, maxRowW = 0;
+    ['edge', 'app', 'data'].forEach(function (band) {
+      var row = rows[band];
+      if (!row || !row.length) { return; }
+      var label = document.createElement('div');
+      label.className = 'layer';
+      label.style.top = y + 'px';
+      label.textContent = band === 'edge' ? 'ENTRY / UI' : band === 'app' ? 'APP' : 'DATA';
+      hold.appendChild(label);
+      y += 22;
+      var x = 0, rowH = 0;
+      row.forEach(function (it) {
+        if (it.pos) { it.el.style.left = it.pos.x + 'px'; it.el.style.top = it.pos.y + 'px'; }
+        else { it.el.style.left = x + 'px'; it.el.style.top = y + 'px'; }
+        hold.appendChild(it.el);
+        rowH = Math.max(rowH, it.el.offsetHeight || 120);
+        x += 190 + 60;
+      });
+      maxRowW = Math.max(maxRowW, x);
+      y += rowH + 46;
+    });
+    hold.style.height = Math.max(180, y) + 'px';
+    hold.style.minWidth = maxRowW + 'px';
+  }
+
+  function crateEl(opts) {
+    var el = document.createElement('div');
+    el.className = 'crate' + (opts.selected ? ' sel' : '');
+    el.dataset.key = opts.key;
+    el.innerHTML = '<div class="handle" style="background:' + opts.color + '"></div>' +
+      '<div class="band" style="background:' + opts.color + '"></div>' +
+      '<div class="cname">' + esc(opts.name) + '</div>' +
+      '<div class="ctech">' + esc(opts.tech) + '</div>' +
+      '<div class="ctags">' + opts.tags.map(function (t) { return '<span class="ctag">' + esc(t) + '</span>'; }).join('') + '</div>' +
+      (opts.warn ? '<span class="cwarn">! ' + opts.warn + '</span>' : '') +
+      (opts.removable ? '<span class="cx" title="remove">x</span>' : '');
+    return el;
+  }
+
+  /** Let crates be dragged around inside their hold; links follow. */
+  function makeDraggable(el, onMove, onClick) {
+    var sx = 0, sy = 0, ox = 0, oy = 0, moved = false, down = false;
+    el.addEventListener('mousedown', function (e) {
+      if (e.target.classList.contains('cx')) { return; }
+      down = true; moved = false; sx = e.clientX; sy = e.clientY; ox = el.offsetLeft; oy = el.offsetTop;
+      e.preventDefault();
+    });
+    window.addEventListener('mousemove', function (e) {
+      if (!down) { return; }
+      var dx = e.clientX - sx, dy = e.clientY - sy;
+      if (Math.abs(dx) + Math.abs(dy) > 3) { moved = true; }
+      el.style.left = Math.max(0, ox + dx) + 'px';
+      el.style.top = Math.max(0, oy + dy) + 'px';
+      onMove();
+    });
+    window.addEventListener('mouseup', function () {
+      if (!down) { return; }
+      down = false;
+      if (!moved && onClick) { onClick(); }
+    });
+  }
+
+  function drawDeps(hold, pairs) {
+    var svg = hold.querySelector('svg.dvlinks');
+    if (!svg) {
+      svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      svg.setAttribute('class', 'dvlinks');
+      hold.insertBefore(svg, hold.firstChild);
+    }
+    var parts = ['<defs><marker id="dvarrow" viewBox="0 -5 10 10" refX="9" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,-4L9,0L0,4" fill="#fff"></path></marker></defs>'];
+    pairs.forEach(function (pr) {
+      var a = hold.querySelector('.crate[data-key="' + pr[0] + '"]'), b = hold.querySelector('.crate[data-key="' + pr[1] + '"]');
+      if (!a || !b) { return; }
+      var ax = a.offsetLeft + a.offsetWidth / 2, ay = a.offsetTop + a.offsetHeight / 2;
+      var bx = b.offsetLeft + b.offsetWidth / 2, by = b.offsetTop + b.offsetHeight / 2;
+      var down = by >= ay;
+      var y1 = down ? a.offsetTop + a.offsetHeight : a.offsetTop, y2 = down ? b.offsetTop : b.offsetTop + b.offsetHeight;
+      parts.push('<path d="M ' + ax + ' ' + y1 + ' C ' + ax + ' ' + ((y1 + y2) / 2) + ', ' + bx + ' ' + ((y1 + y2) / 2) + ', ' + bx + ' ' + y2 +
+        '" stroke="#fff" stroke-width="3" fill="none" stroke-dasharray="7 5" marker-end="url(#dvarrow)"></path>');
+    });
+    svg.innerHTML = parts.join('');
+  }
+
+  function shipEl(label, cls) {
+    var ship = document.createElement('div');
+    ship.className = 'ship' + (cls ? ' ' + cls : '');
+    ship.innerHTML = '<div class="plate">' + esc(label) + '</div><div class="doors"><i style="top:30%"></i><i style="top:62%"></i></div><div class="hold"></div>';
+    return ship;
+  }
+
+  function numbered(text, highlightFrom) {
+    return String(text || '').split('\n').map(function (l, i) {
+      return '<span class="ln">' + ((highlightFrom || 0) + i + 1) + '</span>' + esc(l);
+    }).join('\n');
+  }
+
+  var dvPositions = {};
+
+  function renderProject() {
+    var host = $('dvShips');
+    var d = devopsData;
+    if (!d) {
+      host.innerHTML = '<div class="empty">' + (standalone ? 'No DevOps data in this snapshot.' : 'Reading Dockerfiles and compose files...') + '</div>';
+      $('dvDetail').innerHTML = '';
+      return;
+    }
+    host.innerHTML = '';
+    var counts = d.counts;
+    var summary = document.createElement('div');
+    summary.className = 'fsummary';
+    summary.innerHTML = counts.composeFiles + ' COMPOSE FILE' + (counts.composeFiles === 1 ? '' : 'S') + ' &nbsp;|&nbsp; ' +
+      counts.services + ' SERVICES (' + counts.built + ' BUILT, ' + counts.images + ' IMAGES) &nbsp;|&nbsp; ' +
+      counts.dockerfiles + ' DOCKERFILE' + (counts.dockerfiles === 1 ? '' : 'S') + ' &nbsp;|&nbsp; ' + d.findings.length + ' CHECKS';
+    host.appendChild(summary);
+
+    if (!counts.composeFiles && !counts.dockerfiles) {
+      var empty = shipEl('NO DOCKER SETUP IN THIS FOLDER');
+      empty.querySelector('.hold').innerHTML = '<div class="emptyhold">This container is empty.<br/><br/>' +
+        '<button class="btn" id="dvGoBuild" style="background:var(--yellow)">OPEN THE BUILDER</button></div>';
+      host.appendChild(empty);
+      empty.querySelector('#dvGoBuild').onclick = function () { setDvMode('builder'); };
+    }
+
+    d.composeFiles.forEach(function (cf, ci) {
+      var ship = shipEl(cf.path + (cf.error ? '  -  PARSE ERROR' : '  -  ' + cf.services.length + ' SERVICES'));
+      var hold = ship.querySelector('.hold');
+      host.appendChild(ship);
+      if (cf.error) {
+        hold.innerHTML = '<div class="emptyhold">' + esc(cf.error) + '</div>';
+        return;
+      }
+      var items = cf.services.map(function (sv) {
+        var key = 'c' + ci + ':' + sv.name;
+        var tags = sv.ports.map(function (pt) { return (pt.host || '?') + '->' + pt.container; });
+        sv.volumes.forEach(function (v) { tags.push((v.kind === 'named' ? 'VOL ' : v.kind === 'bind' ? 'MOUNT ' : 'ANON ') + (v.source || v.target)); });
+        if (sv.dockerfile) { tags.push(sv.dockerfile.purpose === 'development' ? 'DEV' : sv.dockerfile.purpose === 'production' ? 'PROD' : 'IMAGE'); }
+        var el = crateEl({ key: key, name: sv.name, tech: (sv.tech ? sv.tech.label : 'service') + (sv.build ? '  (build)' : '  (image)'),
+          tags: tags, color: KIND_COLOR[sv.role] || '#6b6355', warn: sv.findings.length, selected: dvSel === key });
+        return { el: el, role: sv.role, key: key, svc: sv, pos: dvPositions[key] };
+      });
+      layoutCrates(hold, items);
+      var pairs = [];
+      cf.services.forEach(function (sv) { sv.dependsOn.forEach(function (dep) { pairs.push(['c' + ci + ':' + sv.name, 'c' + ci + ':' + dep.name]); }); });
+      drawDeps(hold, pairs);
+      items.forEach(function (it) {
+        makeDraggable(it.el, function () {
+          dvPositions[it.key] = { x: it.el.offsetLeft, y: it.el.offsetTop };
+          drawDeps(hold, pairs);
+        }, function () { dvSel = it.key; renderProject(); });
+      });
+      if (cf.namedVolumes.length) {
+        var barrels = document.createElement('div');
+        barrels.className = 'barrels';
+        barrels.innerHTML = cf.namedVolumes.map(function (v) { return '<span class="barrel">VOLUME ' + esc(v) + '</span>'; }).join('');
+        ship.appendChild(barrels);
+      }
+    });
+
+    d.standaloneDockerfiles.forEach(function (df, di) {
+      var ship = shipEl(df.path + '  -  DOCKERFILE ONLY', 'build');
+      var hold = ship.querySelector('.hold');
+      host.appendChild(ship);
+      var key = 'd' + di;
+      var tags = df.exposes.map(function (e) { return 'EXPOSE ' + e; });
+      tags.push(df.purpose === 'development' ? 'DEV' : df.purpose === 'production' ? 'PROD' : 'IMAGE');
+      var el = crateEl({ key: key, name: df.dir === '.' ? '(project root)' : df.dir, tech: df.tech ? df.tech.label : df.finalImage,
+        tags: tags, color: KIND_COLOR[df.tech ? df.tech.kind : 'service'], warn: df.findings.length, selected: dvSel === key });
+      layoutCrates(hold, [{ el: el, role: df.tech ? df.tech.kind : 'service', key: key }]);
+      el.onclick = function () { dvSel = key; renderProject(); };
+    });
+
+    if (d.looseApps.length) {
+      var loose = document.createElement('div');
+      loose.innerHTML = '<div class="cardhead" style="margin-top:6px">OUTSIDE ANY CONTAINER</div>' +
+        d.looseApps.map(function (a) { return '<span class="loose">' + esc(a.path) + '<br/>' + esc(a.tech.label) + '</span>'; }).join('');
+      host.appendChild(loose);
+    }
+    if (d.commands.length) {
+      var cm = document.createElement('div');
+      cm.className = 'fsection';
+      cm.style.marginTop = '14px';
+      cm.innerHTML = '<h3>COMMANDS</h3>' + d.commands.map(function (c) {
+        return '<div class="frow"><span style="width:70px">' + esc(c.label) + '</span><code class="grow" style="font-size:10px">' + esc(c.command) + '</code>' +
+          (c.warn ? '<span class="riskbadge" style="background:var(--dex-red)">' + esc(c.warn) + '</span>' : '') +
+          '<button class="btn copy" data-text="' + esc(c.command) + '">COPY</button></div>';
+      }).join('');
+      host.appendChild(cm);
+    }
+    host.querySelectorAll('.copy').forEach(function (b) { b.onclick = function () { copyText(b.dataset.text, b); }; });
+    renderProjectDetail();
+  }
+
+  function renderProjectDetail() {
+    var d = devopsData, out = $('dvDetail');
+    if (!d || !dvSel) {
+      out.innerHTML = '<div class="fsection guide"><h3>DEVOPS</h3>Click a crate to see its real file lines, ports, volumes, dependencies and checks. Drag crates to rearrange; dashed arrows are depends_on.</div>' +
+        (d && d.findings.length ? '<div class="fsection"><h3>CHECKS (' + d.findings.length + ')</h3>' + d.findings.map(findingRow).join('') + '</div>' : '');
+      return;
+    }
+    var sv = null, df = null, cfPath = '';
+    if (dvSel.charAt(0) === 'c') {
+      var ci = Number(dvSel.slice(1, dvSel.indexOf(':'))), name = dvSel.slice(dvSel.indexOf(':') + 1);
+      cfPath = d.composeFiles[ci].path;
+      sv = d.composeFiles[ci].services.filter(function (x) { return x.name === name; })[0];
+      df = sv && sv.dockerfile;
+    } else {
+      df = d.standaloneDockerfiles[Number(dvSel.slice(1))];
+    }
+    var html = '';
+    if (sv) {
+      html += '<div class="fsection"><div class="mon">' + esc(sv.name) + '</div>' +
+        '<span class="badge" style="background:' + (KIND_COLOR[sv.role] || '#ccc') + ';color:#fff">' + esc((sv.tech ? sv.tech.label : sv.role).toUpperCase()) + '</span> ' +
+        '<span class="badge" style="background:var(--cream)">' + (sv.build ? 'BUILD ' + esc(sv.build.context) : 'IMAGE ' + esc(sv.image || '')) + '</span></div>';
+      html += '<div class="fsection"><h3>STRUCTURE</h3>' +
+        dvRow('ports', sv.ports.map(function (p) { return (p.host || 'random') + ' -> ' + p.container + (p.protocol !== 'tcp' ? '/' + p.protocol : ''); })) +
+        dvRow('volumes', sv.volumes.map(function (v) { return v.kind + ': ' + (v.source ? v.source + ' -> ' : '') + v.target + (v.readOnly ? ' (ro)' : ''); })) +
+        dvRow('depends on', sv.dependsOn.map(function (x) { return x.name + (x.condition ? ' [' + x.condition + ']' : ''); })) +
+        dvRow('environment', sv.environment.map(function (e) { return e.key + (e.value !== null ? '=' + e.value : ''); })) +
+        dvRow('env files', sv.envFiles) +
+        dvRow('command', sv.command ? [sv.command] : []) +
+        dvRow('healthcheck', [sv.healthcheck ? 'yes' : 'none']) +
+        dvRow('restart', sv.restart ? [sv.restart] : []) + '</div>';
+      if (sv.findings.length) { html += '<div class="fsection"><h3>CHECKS</h3>' + sv.findings.map(findingRow).join('') + '</div>'; }
+      html += '<div class="fsection"><h3>' + esc(cfPath) + ' (line ' + (sv.line + 1) + ')</h3><pre class="code">' + numbered(sv.block, sv.line) + '</pre>' +
+        (standalone ? '' : '<button class="btn dvopen" data-file="' + esc(cfPath) + '" data-line="' + sv.line + '">OPEN FILE</button>') + '</div>';
+      html += '<div class="fsection"><h3>COMMANDS</h3>' + sv.commands.map(function (c) {
+        return '<div class="frow"><span style="width:60px">' + esc(c.label) + '</span><code class="grow" style="font-size:10px">' + esc(c.command) + '</code><button class="btn copy" data-text="' + esc(c.command) + '">COPY</button></div>';
+      }).join('') + '</div>';
+    }
+    if (df) {
+      html += '<div class="fsection"><h3>' + esc(df.path) + '</h3>' +
+        '<div class="stagepipe">' + df.stages.map(function (st, i) { return (i ? '<b>-></b>' : '') + '<span>' + (st.name ? esc(st.name) + ': ' : '') + esc(st.image) + '</span>'; }).join('') + '</div>' +
+        dvRow('purpose', [df.purpose + (df.purposeHint ? ' (' + df.purposeHint + ')' : '')]) +
+        dvRow('expose', df.exposes) + dvRow('workdir', df.workdir ? [df.workdir] : []) + dvRow('user', [df.user || 'root']) +
+        dvRow('.dockerignore', [df.hasDockerignore ? 'yes' : 'missing']) +
+        '<pre class="code">' + numbered(df.text) + '</pre>' +
+        (standalone ? '' : '<button class="btn dvopen" data-file="' + esc(df.path) + '" data-line="0">OPEN FILE</button>') +
+        (!sv && df.findings.length ? '<h3 style="margin-top:10px">CHECKS</h3>' + df.findings.map(findingRow).join('') : '') + '</div>';
+    }
+    out.innerHTML = html;
+    out.querySelectorAll('.copy').forEach(function (b) { b.onclick = function () { copyText(b.dataset.text, b); }; });
+    out.querySelectorAll('.dvopen').forEach(function (b) {
+      b.onclick = function () { vscode.postMessage({ type: 'devopsOpen', file: b.dataset.file, line: Number(b.dataset.line) }); };
+    });
+  }
+
+  function dvRow(label, values) {
+    if (!values || !values.length) { return ''; }
+    return '<div class="formrow"><span>' + esc(label) + '</span><span>' + values.map(function (v) { return '<span class="ctag" style="display:inline-block;margin:0 3px 3px 0">' + esc(v) + '</span>'; }).join('') + '</span></div>';
+  }
+  function findingRow(f) {
+    var color = f.level === 'risk' ? 'var(--dex-red)' : f.level === 'warn' ? 'var(--fire)' : 'var(--blue)';
+    return '<div class="frow" title="' + esc(f.detail || '') + '"><span class="riskbadge" style="background:' + color + '">' + esc(f.level.toUpperCase()) + '</span>' +
+      '<span class="grow">' + esc(f.title) + (f.service ? ' <span style="color:var(--muted)">' + esc(f.service) + '</span>' : '') + '</span>' +
+      '<span style="color:var(--muted);font-size:7px">' + esc(f.detail || '') + '</span></div>';
+  }
+
+  /* ---------------------------------------------------------------- builder */
+  var stack = { projectName: 'my-app', mode: 'development', services: [] };
+  var stackSel = null, outFile = 'docker-compose.yml', stackIds = 0;
+  try {
+    var saved = window.localStorage && window.localStorage.getItem('blastradius.stack');
+    if (saved) { stack = JSON.parse(saved); stackIds = stack.services.length + 1; }
+  } catch (e) { /* no storage in this context */ }
+  function saveStack() {
+    try { window.localStorage && window.localStorage.setItem('blastradius.stack', JSON.stringify(stack)); } catch (e) { /* ignore */ }
+  }
+
+  function addService(templateId) {
+    if (typeof BlastDocker === 'undefined') { return; }
+    var svc = BlastDocker.newService(templateId, stack, 's' + (++stackIds) + '-' + Date.now());
+    stack.services.push(svc);
+    stackSel = svc.id;
+    outFile = 'docker-compose.yml';
+    saveStack();
+    renderBuilder();
+  }
+
+  function renderBuilder() {
+    $('dvModeDev').classList.toggle('on', stack.mode !== 'production');
+    $('dvModeProd').classList.toggle('on', stack.mode === 'production');
+    if (typeof BlastDocker === 'undefined') {
+      $('dvStage').innerHTML = '<div class="empty">Builder module missing from this page.</div>';
+      return;
+    }
+    // palette
+    var groups = [['frontend', 'FRONTEND'], ['backend', 'BACKEND'], ['database', 'DATABASES'], ['cache', 'CACHE'], ['queue', 'QUEUE'], ['proxy', 'PROXY'], ['tool', 'TOOLS']];
+    $('dvPalette').innerHTML = '<div class="cardhead">DRAG INTO THE CONTAINER (OR CLICK)</div>' + groups.map(function (g) {
+      var items = BlastDocker.CATALOG.filter(function (t) { return t.kind === g[0]; });
+      if (!items.length) { return ''; }
+      return '<div class="palgroup">' + g[1] + '</div>' + items.map(function (t) {
+        return '<div class="palitem" draggable="true" data-template="' + t.id + '"><i style="background:' + t.color + '"></i><span>' + esc(t.label) + '<small>' + esc(t.hint) + '</small></span></div>';
+      }).join('');
+    }).join('');
+    $('dvPalette').querySelectorAll('.palitem').forEach(function (it) {
+      it.addEventListener('dragstart', function (e) { e.dataTransfer.setData('text/plain', it.dataset.template); e.dataTransfer.effectAllowed = 'copy'; });
+      it.addEventListener('click', function () { addService(it.dataset.template); });
+    });
+
+    // container
+    var stage = $('dvStage');
+    stage.innerHTML = '';
+    var settings = document.createElement('div');
+    settings.className = 'fsummary';
+    settings.innerHTML = 'PROJECT <input id="dvName" value="' + esc(stack.projectName) + '" style="font:inherit;font-size:8px;padding:3px;border:2px solid #000;width:140px"/> &nbsp;|&nbsp; ' +
+      stack.services.length + ' SERVICE' + (stack.services.length === 1 ? '' : 'S') + ' &nbsp;|&nbsp; ' + stack.mode.toUpperCase() + ' SETUP';
+    stage.appendChild(settings);
+    var ship = shipEl((stack.projectName || 'app') + '  -  DROP SERVICES HERE', 'build');
+    var hold = ship.querySelector('.hold');
+    stage.appendChild(ship);
+    ['dragover', 'dragenter'].forEach(function (ev) { ship.addEventListener(ev, function (e) { e.preventDefault(); ship.classList.add('drop'); }); });
+    ship.addEventListener('dragleave', function () { ship.classList.remove('drop'); });
+    ship.addEventListener('drop', function (e) {
+      e.preventDefault();
+      ship.classList.remove('drop');
+      var id = e.dataTransfer.getData('text/plain');
+      if (id) { addService(id); }
+    });
+    $('dvName').addEventListener('change', function (e) { stack.projectName = e.target.value || 'app'; saveStack(); renderBuilder(); });
+
+    if (!stack.services.length) {
+      hold.innerHTML = '<div class="emptyhold">Empty container.<br/><br/>Drag a frontend, a backend and a database in from the left.</div>';
+    } else {
+      var items = stack.services.map(function (sv) {
+        var t = BlastDocker.templateById(sv.template);
+        var tags = [];
+        if (['database', 'cache', 'queue'].indexOf(t.kind) === -1 || sv.options.publish !== false) { tags.push('localhost:' + sv.hostPort); }
+        if (sv.folder) { tags.push('./' + sv.folder); }
+        var el = crateEl({ key: sv.id, name: sv.name, tech: t.label, tags: tags, color: t.color, selected: stackSel === sv.id, removable: true });
+        return { el: el, role: t.kind, key: sv.id, pos: dvPositions['b:' + sv.id] };
+      });
+      layoutCrates(hold, items);
+      var pairs = [];
+      var kinds = {};
+      stack.services.forEach(function (sv) { kinds[sv.id] = BlastDocker.templateById(sv.template).kind; });
+      stack.services.forEach(function (a) {
+        stack.services.forEach(function (b) {
+          if (kinds[a.id] === 'backend' && ['database', 'cache', 'queue'].indexOf(kinds[b.id]) !== -1) { pairs.push([a.id, b.id]); }
+          if (kinds[a.id] === 'frontend' && kinds[b.id] === 'backend') { pairs.push([a.id, b.id]); }
+        });
+      });
+      drawDeps(hold, pairs);
+      items.forEach(function (it) {
+        makeDraggable(it.el, function () { dvPositions['b:' + it.key] = { x: it.el.offsetLeft, y: it.el.offsetTop }; drawDeps(hold, pairs); },
+          function () { stackSel = it.key; renderBuilder(); });
+        var x = it.el.querySelector('.cx');
+        if (x) {
+          x.onclick = function (e) {
+            e.stopPropagation();
+            stack.services = stack.services.filter(function (sv) { return sv.id !== it.key; });
+            if (stackSel === it.key) { stackSel = null; }
+            saveStack();
+            renderBuilder();
+          };
+        }
+      });
+    }
+    renderBuilderOutput();
+  }
+
+  function renderBuilderOutput() {
+    var gen = BlastDocker.generateStack(stack);
+    var out = $('dvOut');
+    var sel = stack.services.filter(function (sv) { return sv.id === stackSel; })[0];
+    var html = '';
+    if (sel) {
+      var t = BlastDocker.templateById(sel.template);
+      html += '<div class="fsection"><h3>' + esc(t.label.toUpperCase()) + ' OPTIONS</h3>' +
+        '<div class="formrow"><span>service name</span><input data-field="name" value="' + esc(sel.name) + '"/></div>' +
+        (t.defaultFolder ? '<div class="formrow"><span>folder</span><input data-field="folder" value="' + esc(sel.folder) + '"/></div>' : '') +
+        '<div class="formrow"><span>localhost port</span><input data-field="hostPort" type="number" value="' + sel.hostPort + '"/></div>' +
+        t.options.map(function (o) {
+          var v = sel.options[o.key] === undefined ? o.default : sel.options[o.key];
+          if (o.type === 'select') {
+            return '<div class="formrow"><span>' + esc(o.label) + '</span><select data-opt="' + o.key + '">' +
+              o.choices.map(function (c) { return '<option' + (String(v) === c ? ' selected' : '') + '>' + esc(c) + '</option>'; }).join('') + '</select></div>';
+          }
+          if (o.type === 'toggle') {
+            return '<div class="formrow"><span>' + esc(o.label) + '</span><input type="checkbox" data-opt="' + o.key + '"' + (v ? ' checked' : '') + '/></div>';
+          }
+          return '<div class="formrow"><span>' + esc(o.label) + '</span><input data-opt="' + o.key + '" value="' + esc(String(v)) + '"/></div>';
+        }).join('') + '</div>';
+    }
+    if (gen.warnings.length) {
+      html += '<div class="warnbox">' + gen.warnings.map(esc).join('<br/>') + '</div>';
+    }
+    if (!gen.files.length) {
+      html += '<div class="fsection guide"><h3>BUILDER</h3>Drop services into the container. The Dockerfiles, docker-compose.yml and a command guide appear here and update as you change options.</div>';
+      out.innerHTML = html;
+      return;
+    }
+    if (!gen.files.some(function (f) { return f.path === outFile; })) { outFile = gen.files[0].path; }
+    var current = gen.files.filter(function (f) { return f.path === outFile; })[0];
+    html += '<div class="fsection"><h3>FILES</h3><div class="filetabs">' + gen.files.map(function (f) {
+      return '<button class="btn' + (f.path === outFile ? ' on' : '') + '" data-file="' + esc(f.path) + '">' + esc(f.path) + '</button>';
+    }).join('') + '</div>' +
+      '<div class="frow"><b class="grow">' + esc(current.path) + '</b><button class="btn copy" id="dvCopyFile">COPY</button></div>' +
+      '<pre class="code">' + numbered(current.content) + '</pre></div>';
+    html += '<div class="fsection"><h3>GUIDE</h3>' + gen.guide.map(function (g, i) {
+      return '<div style="margin:8px 0"><b style="font-size:8px">' + (i + 1) + '. ' + esc(g.title) + '</b>' +
+        g.commands.map(function (c) {
+          var isCmd = !/^[\w ()-]+: https?:\/\//.test(c);
+          return '<div class="frow"><code class="grow" style="font-size:10px">' + esc(c) + '</code>' + (isCmd ? '<button class="btn copy" data-text="' + esc(c) + '">COPY</button>' : '') + '</div>';
+        }).join('') + (g.note ? '<div class="explain" style="font-size:7.5px;color:var(--muted)">' + esc(g.note) + '</div>' : '') + '</div>';
+    }).join('') + '</div>';
+    out.innerHTML = html;
+
+    out.querySelectorAll('.filetabs .btn').forEach(function (b) { b.onclick = function () { outFile = b.dataset.file; renderBuilderOutput(); }; });
+    var copyFile = $('dvCopyFile');
+    if (copyFile) { copyFile.onclick = function () { copyText(current.content, copyFile); }; }
+    out.querySelectorAll('.copy[data-text]').forEach(function (b) { b.onclick = function () { copyText(b.dataset.text, b); }; });
+    out.querySelectorAll('[data-field]').forEach(function (inp) {
+      inp.addEventListener('change', function () {
+        var f = inp.dataset.field;
+        sel[f] = f === 'hostPort' ? Number(inp.value) || sel.hostPort : inp.value.trim() || sel[f];
+        saveStack();
+        renderBuilder();
+      });
+    });
+    out.querySelectorAll('[data-opt]').forEach(function (inp) {
+      inp.addEventListener('change', function () {
+        sel.options[inp.dataset.opt] = inp.type === 'checkbox' ? inp.checked : inp.value;
+        saveStack();
+        renderBuilder();
+      });
+    });
+  }
+
+  $('dvProject').addEventListener('click', function () { setDvMode('project'); });
+  $('dvBrowser').addEventListener('click', function () {
+    vscode.postMessage({ type: 'browser', tab: 'devops', devopsMode: dvMode, stack: stack });
+  });
+  $('dvBuilder').addEventListener('click', function () { setDvMode('builder'); });
+  $('dvRescan').addEventListener('click', function () { devopsAsked = false; devopsData = null; requestDevops(); });
+  $('dvModeDev').addEventListener('click', function () { stack.mode = 'development'; $('dvModeDev').classList.add('on'); $('dvModeProd').classList.remove('on'); saveStack(); renderBuilder(); });
+  $('dvModeProd').addEventListener('click', function () { stack.mode = 'production'; $('dvModeProd').classList.add('on'); $('dvModeDev').classList.remove('on'); saveStack(); renderBuilder(); });
+  $('dvClear').addEventListener('click', function () { stack.services = []; stackSel = null; saveStack(); renderBuilder(); });
+  $('dvWrite').addEventListener('click', function () {
+    if (typeof BlastDocker === 'undefined') { return; }
+    var gen = BlastDocker.generateStack(stack);
+    if (!gen.files.length) { return; }
+    vscode.postMessage({ type: 'devopsWrite', files: gen.files.map(function (f) { return { path: f.path, content: f.content }; }) });
+  });
+
   /* ------------------------------------------------------------- controls */
   svg.on('click', function () { selected = null; featureHighlight = null; highlight(); renderRail(); });
   $('search').addEventListener('input', function (e) {
@@ -2365,11 +3069,22 @@ window.addEventListener('error', function (e) {
       standalone = true;
       $('browser').style.display = 'none';
       $('featureExportMd').style.display = 'none';
+      $('dvRescan').style.display = 'none';
+      $('dvBrowser').style.display = 'none';
+      $('dvWrite').style.display = 'none';
     }
     if (!standalone && (msg.protocol || 0) < EXPECTED_PROTOCOL) {
       $('staleHost').style.display = 'block';
     }
     if (msg.schema) { renderSchema(msg.schema); }
+    if (msg.devops) { devopsData = msg.devops; if (tab === 'devops') { renderDevops(); } }
+    if (msg.builderStack && msg.builderStack.services) {
+      stack = msg.builderStack;
+      stackIds = stack.services.length + 1;
+      saveStack();
+    }
+    if (msg.devopsMode === 'builder' || msg.devopsMode === 'project') { setDvMode(msg.devopsMode); }
+    if (msg.focusTab) { showTab(msg.focusTab); }
     if (msg.llm && msg.llm.features) { featureLlmDocs = msg.llm.features; }
     if (msg.features) { featureData = msg.features; if (tab === 'features') { renderFeatures(); } }
     if (msg.backups) {
@@ -2409,7 +3124,7 @@ window.addEventListener('error', function (e) {
 
   // If no graph payload shows up, say why rather than leaving a blank canvas.
   setTimeout(function () {
-    if (nodes.length > 0) { return; }
+    if (nodes.length > 0 || tab === 'devops') { return; }
     var hud = $('hud');
     hud.style.background = '#FFCB05';
     hud.innerHTML = 'NO GRAPH DATA RECEIVED.<br/>' +

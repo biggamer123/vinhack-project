@@ -2,7 +2,7 @@
   "name": "blast-radius",
   "displayName": "Blast Radius",
   "description": "Call-graph aware risk visualization for your codebase.",
-  "version": "0.7.0",
+  "version": "0.8.1",
   "publisher": "blastradius",
   "private": true,
   "engines": {
@@ -21,7 +21,11 @@
     "workspaceContains:**/*.js",
     "workspaceContains:**/*.ts",
     "workspaceContains:**/*.tsx",
-    "workspaceContains:**/*.go"
+    "workspaceContains:**/*.go",
+    "workspaceContains:**/Dockerfile",
+    "workspaceContains:**/docker-compose.yml",
+    "workspaceContains:**/compose.yaml",
+    "onStartupFinished"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -30,6 +34,14 @@
         "command": "blastradius.showGraph",
         "title": "Blast Radius: Show Full Graph",
         "icon": "$(graph)"
+      },
+      {
+        "command": "blastradius.openDevops",
+        "title": "Blast Radius: Open DevOps (Docker Builder)"
+      },
+      {
+        "command": "blastradius.openDevopsInBrowser",
+        "title": "Blast Radius: Open Docker Builder in Browser"
       },
       {
         "command": "blastradius.openInBrowser",
@@ -117,9 +129,10 @@
     "setup": "npm install && npm run compile && npm run setup:demo",
     "setup:demo": "node scripts/setup-demo.js",
     "check:features": "node scripts/check-features.js",
-    "test": "node scripts/check-backups.js && node scripts/check-features.js && node scripts/check-llm.js && node scripts/check-webview.js demo && node --test test/",
+    "test": "node scripts/check-backups.js && node scripts/check-features.js && node scripts/check-llm.js && node scripts/check-devops.js && node scripts/check-webview.js demo && node --test test/",
     "check:backups": "node scripts/check-backups.js",
-    "check:llm": "node scripts/check-llm.js"
+    "check:llm": "node scripts/check-llm.js",
+    "check:devops": "node scripts/check-devops.js"
   },
   "devDependencies": {
     "@types/node": "^20.11.0",
@@ -130,6 +143,7 @@
     "typescript": "^5.4.0"
   },
   "dependencies": {
-    "web-tree-sitter": "^0.22.6"
+    "web-tree-sitter": "^0.22.6",
+    "yaml": "^2.9.1"
   }
 }
