@@ -18,6 +18,7 @@
  * against a real repository.
  */
 import { execFile } from "child_process";
+import { identitiesFor } from "./identity";
 
 /* ------------------------------------------------------------------ types */
 
@@ -104,6 +105,8 @@ export interface FunctionRef {
 }
 
 export interface Feature {
+  /** Named in .blastradius/FEATURES.md rather than by a commit message. */
+  fromLog?: boolean;
   key: string;
   name: string;
   scope: string | null;
@@ -205,9 +208,13 @@ export async function readCommits(repoRoot: string, limit = 3000): Promise<RawCo
     "--no-color",
     `-n${limit}`,
     "--name-only",
-    `--format=${RS}%H${US}%an${US}%ae${US}%aI${US}%s`,
+    `--format=${RS}%H${US}%aN${US}%aE${US}%aI${US}%s`,
   ]);
-  return parseLogOutput(out);
+  const people = await identitiesFor(repoRoot);
+  return parseLogOutput(out).map((c) => {
+    const who = people.resolve(c.author, c.email);
+    return { ...c, author: who.name, email: who.email };
+  });
 }
 
 export function parseLogOutput(out: string): RawCommit[] {
@@ -240,7 +247,12 @@ export function parseLogOutput(out: string): RawCommit[] {
 
 /* --------------------------------------------------------------- grouping */
 
-export function buildFeatures(commits: RawCommit[], functions: FunctionRef[]): FeaturesPayload {
+export function buildFeatures(
+  commits: RawCommit[],
+  functions: FunctionRef[],
+  /** Short hash -> feature, from .blastradius/FEATURES.md. Used when the message has no tag. */
+  tags?: Map<string, { name: string; type: CommitType }>,
+): FeaturesPayload {
   // short hash -> functions whose line ranges that commit changed
   const touched = new Map<string, FunctionRef[]>();
   let functionsWithHistory = 0;
@@ -264,13 +276,18 @@ export function buildFeatures(commits: RawCommit[], functions: FunctionRef[]): F
   let tagged = 0;
 
   for (const commit of commits) {
-    const parsed = parseCommitMessage(commit.subject);
+    const short = commit.hash.slice(0, 8);
+    // The commit message wins; the shared log covers everything else.
+    const logged = tags?.get(short) || tags?.get(short.slice(0, 7));
+    const parsed =
+      parseCommitMessage(commit.subject) ||
+      (logged ? { type: logged.type, scope: null, title: logged.name, breaking: false } : null);
     if (!parsed) {
-      untagged.push({ hash: commit.hash.slice(0, 8), subject: commit.subject, author: commit.author, t: commit.t });
+      untagged.push({ hash: short, subject: commit.subject, author: commit.author, t: commit.t });
       continue;
     }
     tagged++;
-    const key = featureKey(parsed);
+    const key = logged && !parseCommitMessage(commit.subject) ? `title:${logged.name.toLowerCase()}` : featureKey(parsed);
     let feature = groups.get(key);
     if (!feature) {
       feature = {
@@ -285,14 +302,15 @@ export function buildFeatures(commits: RawCommit[], functions: FunctionRef[]): F
         functions: [],
         firstChange: commit.t,
         lastChange: commit.t,
+        fromLog: !!logged && !parseCommitMessage(commit.subject),
       };
       groups.set(key, feature);
     }
     feature.typeCounts[parsed.type] = (feature.typeCounts[parsed.type] || 0) + 1;
     feature.commits.push({
-      hash: commit.hash.slice(0, 8),
+      hash: short,
       type: parsed.type,
-      title: parsed.title,
+      title: parsed.title === logged?.name ? commit.subject : parsed.title,
       author: commit.author,
       email: commit.email,
       t: commit.t,
@@ -387,7 +405,7 @@ function finalize(feature: Feature, touched: Map<string, FunctionRef[]>): Featur
   feature.commits.sort((a, b) => b.t - a.t);
   // Name a title-grouped feature the way it was introduced, not how its latest
   // commit happened to spell it.
-  if (!feature.scope && feature.commits.length) {
+  if (!feature.scope && !feature.fromLog && feature.commits.length) {
     feature.name = feature.commits[feature.commits.length - 1].title;
   }
   feature.authors = [...authors.values()].sort((a, b) => b.commits - a.commits);

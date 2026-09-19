@@ -5,11 +5,12 @@
  * actually touched that line range, with git following the range backwards
  * through edits. From a single call we derive both:
  *   - churn     = commits in the last 90 days
- *   - busFactor = distinct author emails, over all time
+ *   - busFactor = distinct authors (one per person, see identity.ts), over all time
  */
 import { execFile } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
+import { identitiesFor } from './identity';
 
 export interface RangeCommit {
   hash: string;
@@ -95,12 +96,13 @@ export async function historyForRange(
       'log',
       '--no-color',
       `-L${startLine + 1},${endLine + 1}:${rel}`,
-      `--format=%H${SEP}%ae${SEP}%an${SEP}%aI${SEP}%s`,
+      `--format=%H${SEP}%aE${SEP}%aN${SEP}%aI${SEP}%s`,
     ]);
   } catch {
     return empty;
   }
 
+  const people = await identitiesFor(repoRoot);
   const commits: RangeCommit[] = [];
   const seen = new Set<string>();
   for (const line of stdout.split(/\r?\n/)) {
@@ -113,7 +115,9 @@ export async function historyForRange(
       continue;
     }
     seen.add(hash);
-    commits.push({ hash, email, name, date: new Date(iso), subject: subject || "" });
+    // One person, one identity - a PR merged on GitHub uses a noreply email.
+    const who = people.resolve(name, email);
+    commits.push({ hash, email: who.email, name: who.name, date: new Date(iso), subject: subject || "" });
   }
 
   return summarize(commits);

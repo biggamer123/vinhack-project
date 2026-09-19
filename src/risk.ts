@@ -9,9 +9,10 @@ import * as vscode from "vscode";
 import { CoverageProvider } from "./coverage";
 import { CHURN_WINDOW_DAYS, findRepoRoot, historyForRange } from "./git";
 import { CallGraph, FunctionNode } from "./graph";
-import { computeScore, RiskTier, tierFor } from "./score";
+import { assessFunction } from "./assess";
+import { RiskBreakdown } from "./score";
 
-export { computeScore, tierFor, TIER_COLORS } from "./score";
+export { computeRisk, computeScore, formulaText, tierFor, TIER_COLORS } from "./score";
 export type { RiskTier } from "./score";
 
 export interface RiskInfo {
@@ -32,6 +33,10 @@ export interface RiskInfo {
   testRefs: { file: string; line: number; name: string }[];
   /** False until git history for this function has actually been fetched. */
   gitResolved: boolean;
+  /** The inputs and result of the score, including whether the function is used. */
+  breakdown: RiskBreakdown;
+  /** Graph revision the breakdown was computed against. */
+  graphRevision: number;
 }
 
 export class RiskService {
@@ -68,10 +73,9 @@ export class RiskService {
   riskFor(node: FunctionNode): RiskInfo {
     const cached = this.cache.get(node.id);
     if (cached) {
-      // fan-in changes with every re-index; keep it live even on cached entries.
-      if (cached.fanIn !== node.callers.size) {
-        cached.fanIn = node.callers.size;
-        cached.score = computeScore(cached);
+      // Callers and usage change when any file changes, not just this one.
+      if (cached.graphRevision !== this.graph.revision) {
+        this.rescore(node, cached);
       }
       return cached;
     }
@@ -100,9 +104,19 @@ export class RiskService {
       commits: [],
       testRefs: this.coverage.relatedTests(node.name),
       gitResolved: false,
+      breakdown: undefined as unknown as RiskBreakdown,
+      graphRevision: -1,
     };
-    info.score = computeScore(info);
+    this.rescore(node, info);
     return info;
+  }
+
+  /** Recompute the score from the current graph and this function's measured facts. */
+  private rescore(node: FunctionNode, info: RiskInfo): void {
+    info.fanIn = node.callers.size;
+    info.breakdown = assessFunction(this.graph, node, info);
+    info.score = info.breakdown.score;
+    info.graphRevision = this.graph.revision;
   }
 
   /** Drop cached risk for one file (called on save). */
@@ -166,7 +180,7 @@ export class RiskService {
           ? history.lastChange.getTime()
           : null;
         info.gitResolved = true;
-        info.score = computeScore(info);
+        this.rescore(node, info);
         done++;
         if (done % 20 === 0) {
           opts.onProgress?.(done, pending.length);
@@ -185,11 +199,18 @@ export class RiskService {
   /** One-line CodeLens summary. */
   summaryLine(node: FunctionNode): string {
     const risk = this.riskFor(node);
+    const b = risk.breakdown;
+    if (b.usage === "unused") {
+      return `unused ${b.score} · 0 callers - safe to remove`;
+    }
+    if (b.usage === "exported-unused") {
+      return `unused ${b.score} · 0 callers - exported, but nothing here imports it`;
+    }
     const parts = [
       `risk ${risk.score}`,
-      `${risk.fanIn} caller${risk.fanIn === 1 ? "" : "s"}`,
+      `${risk.fanIn} caller${risk.fanIn === 1 ? "" : "s"}${b.usage === "entry" ? " (entry point)" : ""}`,
+      this.coverageLabel(risk),
     ];
-    parts.push(this.coverageLabel(risk));
     if (this.gitAvailable) {
       parts.push(
         risk.gitResolved
@@ -218,10 +239,27 @@ export class RiskService {
   /** Full plain-language breakdown for the hover tooltip. */
   tooltip(node: FunctionNode): vscode.MarkdownString {
     const risk = this.riskFor(node);
-    const tier = tierFor(risk.score);
+    const b = risk.breakdown;
+    const tier = b.tier;
     const md = new vscode.MarkdownString();
     md.supportHtml = false;
+
+    if (b.usage === "unused" || b.usage === "exported-unused") {
+      md.appendMarkdown(`**${node.name}** - UNUSED, score ${b.score}\n\n`);
+      md.appendMarkdown(
+        `- **Called by:** nothing. No call, callback, JSX tag or registration anywhere in this workspace.\n` +
+          `- **Calls:** ${node.callees.size} function${node.callees.size === 1 ? "" : "s"} - lines in the graph from this function go out to those, not in.\n` +
+          (b.usage === "unused"
+            ? `- **Safe to remove:** not exported, not an entry point, test or generated code.\n`
+            : `- **Exported:** nothing here imports it - check nothing outside this workspace uses it before removing.\n`),
+      );
+      md.appendMarkdown(`\n\`score = -lines\` = **${b.score}** (negative scores are dead code)`);
+      return md;
+    }
     md.appendMarkdown(`**${node.name}** - risk ${risk.score} (${tier})\n\n`);
+    if (b.usage === "entry") {
+      md.appendMarkdown(`- **Entry point:** called by a framework, runtime, library or test rather than by code here.\n`);
+    }
     md.appendMarkdown(
       `- **Blast radius:** ${risk.fanIn} function${risk.fanIn === 1 ? "" : "s"} in this workspace ` +
         `call it${risk.fanIn === 0 ? " - changing it affects nothing else here" : ", so a change here reaches all of them"}.\n`,
@@ -274,4 +312,5 @@ export class RiskService {
     );
     return md;
   }
+
 }

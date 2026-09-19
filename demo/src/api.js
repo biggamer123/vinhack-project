@@ -4,6 +4,12 @@ const { search } = require('./search');
 const { legacyExport } = require('./legacy');
 const { trace } = require('./telemetry');
 const { recordChange } = require('./audit');
+const { createCommentStore, addComment, listComments, threadComments, moderateComment } = require('./comments');
+const { requireUser, requireRole } = require('./auth/middleware');
+const { createSession, revokeSession, sessionCookie, tokenFromCookie } = require('./auth/session');
+const { verifyPassword } = require('./auth/password');
+const { buildRss } = require('./feed/rss');
+const { dailyReport, exportCsv } = require('./admin/reports');
 
 function handleGet(store, id) {
   trace('api.get', { id });
@@ -21,16 +27,24 @@ function handleList(store) {
   return ok(renderFeed(listPosts(store)));
 }
 
-function handleCreate(store, body) {
+function handleCreate(store, body, request) {
   trace('api.create', { body });
-  recordChange('web', 'create', 'post');
+  const denied = requireRole(request, 'author');
+  if (denied) {
+    return denied;
+  }
+  recordChange(request.session.userId, 'create', 'post');
   const post = savePost(store, body);
   return ok(renderCard(post));
 }
 
-function handleDelete(store, id) {
+function handleDelete(store, id, request) {
   trace('api.delete', { id });
-  recordChange('web', 'delete', id);
+  const denied = requireRole(request, 'editor');
+  if (denied) {
+    return denied;
+  }
+  recordChange(request.session.userId, 'delete', id);
   if (!deletePost(store, id)) {
     return notFound();
   }
@@ -56,6 +70,58 @@ function handleSlug(store, slug) {
   return post ? ok(renderCard(post)) : notFound();
 }
 
+function handleComments(store, postId) {
+  trace('api.comments', { postId });
+  return ok(threadComments(listComments(store.comments, postId)));
+}
+
+function handleAddComment(store, postId, body, request) {
+  const denied = requireUser(request);
+  if (denied) {
+    return denied;
+  }
+  const author = { id: request.session.userId, name: body.name || 'reader' };
+  return ok(addComment(store.comments, postId, author, body.text, body.parentId));
+}
+
+function handleModerate(store, commentId, body, request) {
+  const denied = requireRole(request, 'editor');
+  if (denied) {
+    return denied;
+  }
+  const comment = moderateComment(store.comments, commentId, body.decision, { id: request.session.userId });
+  return comment ? ok(comment) : notFound();
+}
+
+function handleLogin(store, body) {
+  trace('api.login', { email: body && body.email });
+  const user = store.users.get(body && body.email);
+  if (!user || !verifyPassword(body.password, user.passwordHash)) {
+    recordChange('anon', 'login-failed', body && body.email);
+    return { status: 401, data: { error: 'invalid credentials' } };
+  }
+  const session = createSession(user);
+  return { status: 200, data: { ok: true }, headers: { 'set-cookie': sessionCookie(session) } };
+}
+
+function handleLogout(request) {
+  revokeSession(tokenFromCookie(request.headers && request.headers.cookie));
+  return ok({ loggedOut: true });
+}
+
+function handleRss(store) {
+  return { status: 200, data: buildRss(store, 'https://inkwell.example') };
+}
+
+function handleReport(store, request, format) {
+  const denied = requireRole(request, 'admin');
+  if (denied) {
+    return denied;
+  }
+  const report = dailyReport(store);
+  return format === 'csv' ? ok(exportCsv(report.authors.map(([id, posts]) => ({ id, posts })), ['id', 'posts'])) : ok(report);
+}
+
 function ok(data) {
   return { status: 200, data };
 }
@@ -65,24 +131,62 @@ function notFound() {
   return { status: 404, data: null };
 }
 
-function route(store, method, path, body) {
+function idFrom(path, index) {
+  return Number(path.split('/')[index]);
+}
+
+function route(store, method, path, body, request) {
+  const req = request || { headers: {} };
   if (method === 'GET' && path === '/posts') {
     return handleList(store);
   }
+  if (method === 'GET' && path === '/feed.xml') {
+    return handleRss(store);
+  }
+  if (method === 'GET' && path.startsWith('/search?q=')) {
+    return handleSearch(store, decodeURIComponent(path.slice(10)));
+  }
+  if (method === 'GET' && /^\/posts\/\d+\/comments$/.test(path)) {
+    return handleComments(store, idFrom(path, 2));
+  }
+  if (method === 'POST' && /^\/posts\/\d+\/comments$/.test(path)) {
+    return handleAddComment(store, idFrom(path, 2), body || {}, req);
+  }
+  if (method === 'POST' && /^\/comments\/\d+\/moderate$/.test(path)) {
+    return handleModerate(store, idFrom(path, 2), body || {}, req);
+  }
+  if (method === 'GET' && path.startsWith('/posts/by-slug/')) {
+    return handleSlug(store, path.split('/')[3]);
+  }
   if (method === 'GET' && path.startsWith('/posts/')) {
-    return handleGet(store, Number(path.split('/')[2]));
+    return handleGet(store, idFrom(path, 2));
   }
   if (method === 'POST' && path === '/posts') {
-    return handleCreate(store, body);
+    return handleCreate(store, body, req);
   }
   if (method === 'DELETE' && path.startsWith('/posts/')) {
-    return handleDelete(store, Number(path.split('/')[2]));
+    return handleDelete(store, idFrom(path, 2), req);
+  }
+  if (method === 'POST' && path === '/login') {
+    return handleLogin(store, body);
+  }
+  if (method === 'POST' && path === '/logout') {
+    return handleLogout(req);
+  }
+  if (method === 'GET' && path.startsWith('/admin/report')) {
+    return handleReport(store, req, path.endsWith('.csv') ? 'csv' : 'json');
+  }
+  if (method === 'GET' && path === '/export') {
+    return handleExport(store);
   }
   return notFound(); // fallthrough
 }
 
 function newServer() {
-  return { store: createStore(), route };
+  const store = createStore();
+  store.comments = createCommentStore();
+  store.users = new Map();
+  return { store, route };
 }
 
 module.exports = { route, newServer, handleGet, handleList, handleCreate, handleDelete, handleSearch, handleExport, handleSlug, ok, notFound };

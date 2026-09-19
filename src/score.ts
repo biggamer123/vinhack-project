@@ -5,10 +5,12 @@
  * with scripts/check-risk.js - the numbers on screen come from exactly this code.
  */
 
-export type RiskTier = "low" | "medium" | "high" | "critical";
+export type RiskTier = "unused" | "low" | "medium" | "high" | "critical";
+export type UsageStatus = "entry" | "active" | "exported-unused" | "unused";
 
 /** Pokemon type colours, reused as the severity scale. */
 export const TIER_COLORS: Record<RiskTier, string> = {
+  unused: "#705898", // Ghost
   low: "#78C850", // Grass
   medium: "#F8D030", // Electric
   high: "#EE8130", // Fire
@@ -16,6 +18,9 @@ export const TIER_COLORS: Record<RiskTier, string> = {
 };
 
 export function tierFor(score: number): RiskTier {
+  if (score < 0) {
+    return "unused";
+  }
   if (score < 15) {
     return "low";
   }
@@ -52,4 +57,51 @@ export function computeScore(input: {
     input.churnCount -
     (input.busFactor > 1 ? 2 : 0);
   return Math.max(0, Math.round(raw * 10) / 10);
+}
+
+/**
+ * UNUSED CODE - nothing calls it, so there is no blast radius at all. Instead of a
+ * risk score it gets a negative one, so it sorts apart and reads as "remove me":
+ *
+ *   score = -lines                     the lines you could delete
+ *
+ * "Unused" means no caller of any kind (see CallGraph.usageStatus): no call, no
+ * callback, no JSX tag, and it is not an entry point, test or generated code.
+ * Exported-unused gets the same score but a different label - something outside
+ * this workspace might still import it.
+ */
+export function unusedScore(lines: number): number {
+  return -Math.max(1, lines);
+}
+
+export interface RiskInput {
+  fanIn: number;
+  lines: number;
+  usage: UsageStatus;
+  coveragePct: number | null;
+  churnCount: number;
+  busFactor: number;
+}
+
+/** The inputs plus the result, so every view can show the arithmetic. */
+export interface RiskBreakdown extends RiskInput {
+  score: number;
+  tier: RiskTier;
+}
+
+export function computeRisk(input: RiskInput): RiskBreakdown {
+  const unused = input.usage === "unused" || input.usage === "exported-unused";
+  const score = unused ? unusedScore(input.lines) : computeScore(input);
+  return { ...input, score, tier: unused ? "unused" : tierFor(score) };
+}
+
+/** The arithmetic behind a score, as one line for tooltips and documents. */
+export function formulaText(b: RiskBreakdown): string {
+  if (b.usage === "unused" || b.usage === "exported-unused") {
+    return `unused: 0 callers, so score = -lines = ${b.score}`;
+  }
+  return (
+    `score = fanIn*2 + (100 - coverage)/10 + churn - (busFactor > 1 ? 2 : 0) = ` +
+    `${b.fanIn}*2 + (100 - ${b.coveragePct ?? 50})/10 + ${b.churnCount} - ${b.busFactor > 1 ? 2 : 0} = ${b.score}`
+  );
 }

@@ -10,6 +10,7 @@
  */
 import * as vscode from "vscode";
 import { RiskCodeLensProvider, RiskHoverProvider } from "./codelens";
+import { FeatureTagger } from "./featureTagger";
 import { CallGraph } from "./graph";
 import {
   dialectFor,
@@ -42,6 +43,7 @@ let backupsController: BackupsController;
 let risk: RiskService;
 let lensProvider: RiskCodeLensProvider;
 let output: vscode.OutputChannel;
+let featureTagger: FeatureTagger;
 let statusBar: vscode.StatusBarItem;
 let extensionContext: vscode.ExtensionContext;
 
@@ -68,6 +70,14 @@ export async function activate(
     backupsController.onDidChange(() => GraphPanel.refreshBackups()),
   );
   void backupsController.start();
+  // Ask which feature a commit belongs to, and keep the shared log up to date.
+  featureTagger = new FeatureTagger(output);
+  context.subscriptions.push(featureTagger);
+  const taggerRoot = workspaceRoot();
+  if (taggerRoot) {
+    void featureTagger.start(taggerRoot);
+  }
+
   lensProvider = new RiskCodeLensProvider(graph, risk);
 
   const selector = LANGUAGES.map((language) => ({ language, scheme: "file" }));
@@ -109,6 +119,7 @@ export async function activate(
       }
     }),
     vscode.commands.registerCommand("blastradius.tagCommit", tagCommitMessage),
+    vscode.commands.registerCommand("blastradius.tagCommitFeature", () => featureTagger.tagExistingCommit()),
     vscode.commands.registerCommand("blastradius.backupsEnable", () => backupsController.enable()),
     vscode.commands.registerCommand("blastradius.backupsDisable", () => backupsController.disable()),
     vscode.commands.registerCommand("blastradius.backupNow", () => backupsController.backupNow("manual", "manual backup")),
@@ -315,8 +326,10 @@ function updateStatusBar(): void {
     statusBar.hide();
     return;
   }
-  const risky = nodes.filter((n) => risk.riskFor(n).score >= 30).length;
-  statusBar.text = `$(flame) Blast Radius: ${risky} high-risk / ${nodes.length}`;
+  const tiers = nodes.map((n) => risk.riskFor(n).breakdown.tier);
+  const risky = tiers.filter((t) => t === "high" || t === "critical").length;
+  const unused = tiers.filter((t) => t === "unused").length;
+  statusBar.text = `$(flame) Blast Radius: ${risky} high-risk${unused ? ` · ${unused} unused` : ""} / ${nodes.length}`;
   statusBar.tooltip = "Open the Blast Radius call graph";
   statusBar.show();
 }

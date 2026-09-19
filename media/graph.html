@@ -372,6 +372,9 @@
   .crate .ctag { font-size: 6.5px; background: #fffdf6; border: 2px solid #000; padding: 1px 4px; }
   .crate .cwarn { position: absolute; right: -10px; top: -10px; background: var(--fire); border: 2px solid #000; font-size: 7px; padding: 2px 5px; }
   .crate .cx { position: absolute; right: 4px; top: 12px; font-size: 9px; cursor: pointer; background: #fff; border: 2px solid #000; padding: 0 3px; }
+  .crate .cport { position: absolute; right: 26px; top: 12px; font-size: 9px; cursor: pointer; background: var(--yellow); border: 2px solid #000; padding: 0 3px; }
+  .crate.linking { outline: 3px dashed var(--yellow); outline-offset: 3px; }
+  .crate.linking .cport { background: var(--blue); color: #fff; }
   .layer { position: absolute; left: 0; font-size: 7px; color: #fff; text-shadow: 1px 1px 0 #000; }
   .dvlinks { position: absolute; inset: 0; pointer-events: none; overflow: visible; }
   .barrels { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
@@ -432,6 +435,7 @@
     <span class="tierchip" data-tier="medium" style="background:var(--electric)">MED</span>
     <span class="tierchip" data-tier="high" style="background:var(--fire)">HIGH</span>
     <span class="tierchip" data-tier="critical" style="background:var(--dark);color:#fff">CRIT</span>
+    <span class="tierchip" data-tier="unused" style="background:#705898;color:#fff" title="Negative score: never used - candidates for removal">UNUSED</span>
     <button class="btn" id="isolate">HIDE ORPHANS</button>
     <button class="btn" id="freeze">FREEZE</button>
     <button class="btn" id="reset">FIT VIEW</button>
@@ -638,13 +642,13 @@ window.addEventListener('error', function (e) {
     ? acquireVsCodeApi()
     : { postMessage: function () {} };
 
-  var TIER_COLOR = { low: '#78C850', medium: '#F8D030', high: '#EE8130', critical: '#7C538C' };
-  var TIER_NAME = { low: 'GRASS / LOW', medium: 'ELECTRIC / MED', high: 'FIRE / HIGH', critical: 'DARK / CRITICAL' };
+  var TIER_COLOR = { unused: '#705898', low: '#78C850', medium: '#F8D030', high: '#EE8130', critical: '#7C538C' };
+  var TIER_NAME = { unused: 'GHOST / UNUSED', low: 'GRASS / LOW', medium: 'ELECTRIC / MED', high: 'FIRE / HIGH', critical: 'DARK / CRITICAL' };
   var AUTHOR_COLORS = ['#3B4CCA', '#EE8130', '#78C850', '#7C538C', '#F8D030', '#DC0A2D', '#5b8fb9', '#b06c49'];
 
   var nodes = [], links = [], byId = new Map();
   var selected = null, frozen = false, hideOrphans = false, standalone = false;
-  var activeTiers = new Set(['low', 'medium', 'high', 'critical']);
+  var activeTiers = new Set(['unused', 'low', 'medium', 'high', 'critical']);
   var query = '', tab = 'graph', lineageStack = [], authorColor = new Map();
   // Must match PROTOCOL_VERSION in src/protocol.ts. A payload older than this
   // means the running extension host predates this page - see the banner.
@@ -1242,15 +1246,46 @@ window.addEventListener('error', function (e) {
   }
 
   function updateHud(shownCount) {
-    var counts = { low: 0, medium: 0, high: 0, critical: 0 };
-    nodes.forEach(function (n) { counts[n.tier]++; });
+    var counts = { unused: 0, low: 0, medium: 0, high: 0, critical: 0 };
+    nodes.forEach(function (n) { counts[n.tier] = (counts[n.tier] || 0) + 1; });
     $('hud').innerHTML =
       'SHOWING ' + shownCount + ' / ' + nodes.length + ' FUNCTIONS<br/>' +
       'GRASS ' + counts.low + ' &nbsp; ELECTRIC ' + counts.medium +
-      ' &nbsp; FIRE ' + counts.high + ' &nbsp; DARK ' + counts.critical;
+      ' &nbsp; FIRE ' + counts.high + ' &nbsp; DARK ' + counts.critical + ' &nbsp; GHOST ' + counts.unused;
   }
 
   /* ------------------------------------------------------------ shared bits */
+  var USAGE_TEXT = {
+    entry: 'ENTRY POINT - called by a framework, runtime, library or test',
+    active: 'IN USE',
+    'exported-unused': 'UNUSED - EXPORTED, BUT NOTHING HERE CALLS OR IMPORTS IT',
+    unused: 'UNUSED - NOTHING CALLS IT - SAFE TO REMOVE'
+  };
+
+  /** Bars and the arithmetic, from the host-computed breakdown. */
+  function breakdownHtml(d, barFn) {
+    var r = d.risk, b = r && r.breakdown;
+    var usage = b ? b.usage : 'active';
+    var callers = callersOf(d).length, calls = calleesOf(d).length;
+    if (usage === 'unused' || usage === 'exported-unused') {
+      return '<div class="flag" style="background:#705898;color:#fff">' + USAGE_TEXT[usage] + '</div>' +
+        barFn('CALLED BY', 0, 1, '0', '#705898') +
+        barFn('CALLS OUT', calls, maxOf(function (n) { return n.fanOut; }), String(calls), 'var(--blue)') +
+        barFn('LINES', d.lines || 1, maxOf(function (n) { return n.lines || 1; }), String(d.lines || '?'), '#705898') +
+        '<div class="formula">NOTHING CALLS IT' + (calls ? ' - graph lines from it go OUT to the ' + calls + ' function' + (calls === 1 ? '' : 's') + ' it calls' : '') +
+        '<br/>score = -lines = ' + d.score +
+        (usage === 'exported-unused' ? '<br/>check nothing outside this workspace imports it' : '') + '</div>';
+    }
+    var cov = r.coveragePct === null ? 50 : r.coveragePct;
+    return (usage === 'entry' ? '<div class="flag" style="background:var(--gb-green)">' + USAGE_TEXT.entry + '</div>' : '') +
+      barFn('CALLERS', r.fanIn, maxOf(function (n) { return n.fanIn; }), String(r.fanIn), 'var(--dex-red)') +
+      barFn('CALLS OUT', d.fanOut, maxOf(function (n) { return n.fanOut; }), String(d.fanOut), 'var(--blue)') +
+      barFn('COVERAGE', cov, 100, covText(r), cov >= 50 ? 'var(--grass)' : 'var(--fire)') +
+      barFn('CHURN 90D', r.churnCount, maxOf(function (n) { return n.risk.churnCount; }), String(r.churnCount), 'var(--yellow)') +
+      barFn('BUS FACTOR', r.busFactor, 5, String(r.busFactor), r.busFactor <= 1 ? 'var(--fire)' : 'var(--grass)') +
+      '<div class="formula">score = ' + r.fanIn + '*2 + (100-' + (r.coveragePct === null ? 50 : r.coveragePct) +
+      ')/10 + ' + r.churnCount + ' - ' + (r.busFactor > 1 ? 2 : 0) + ' = ' + d.score + '</div>';
+  }
   function covText(r) {
     if (r.coverageIsProxy) { return r.coveragePct === 100 ? 'PROXY: NAMED' : 'PROXY: NONE'; }
     return r.coveragePct === null ? 'NO DATA' : r.coveragePct + '%';
@@ -1283,9 +1318,11 @@ window.addEventListener('error', function (e) {
   /* ------------------------------------------------------------- rail list */
   function renderRail() {
     var q = ($('railSearch').value || '').trim().toLowerCase();
+    // Follows the tier chips, so UNUSED alone lists exactly the removal candidates.
     var rows = nodes
+      .filter(function (n) { return activeTiers.has(n.tier); })
       .filter(function (n) { return !q || n.name.toLowerCase().indexOf(q) !== -1 || n.file.toLowerCase().indexOf(q) !== -1; })
-      .slice(0, 400);
+      .slice(0, 2000);
     $('railList').innerHTML = rows.map(function (n) {
       return '<div class="row' + (selected && selected.id === n.id ? ' on' : '') + '" data-id="' + esc(n.id) + '">' +
         '<i class="swatch" style="background:' + TIER_COLOR[n.tier] + '"></i>' +
@@ -1302,8 +1339,13 @@ window.addEventListener('error', function (e) {
   }
 
   /* ------------------------------------------------------------- dex entry */
-  function select(d, fromGraph) {
+  var functionSourcesById = null;
+
+  function select(d, fromGraph, quiet) {
     selected = d;
+    // Show the definition beside the graph. Skipped for the initial focus from a
+    // CodeLens click - that file is already open.
+    if (!quiet && !standalone) { vscode.postMessage({ type: 'reveal', id: d.id }); }
     highlight();
     renderRail();
     var r = d.risk;
@@ -1312,28 +1354,22 @@ window.addEventListener('error', function (e) {
     var html =
       '<div class="dexno">NO. ' + String(d.index + 1).padStart(3, '0') + '</div>' +
       '<div class="mon">' + esc(d.name) + '</div>' +
-      '<span class="badge" style="background:' + TIER_COLOR[d.tier] + (d.tier === 'critical' ? ';color:#fff' : '') + '">' +
+      '<span class="badge" style="background:' + TIER_COLOR[d.tier] + (d.tier === 'critical' || d.tier === 'unused' ? ';color:#fff' : '') + '">' +
         TIER_NAME[d.tier] + '</span>' +
-      '<span class="badge" style="background:var(--cream);margin-left:6px">RISK ' + d.score + '</span>' +
+      '<span class="badge" style="background:var(--cream);margin-left:6px">' + (d.score < 0 ? 'SCORE ' : 'RISK ') + d.score + '</span>' +
       '<div class="path">' + esc(d.file) + ':' + (d.startLine + 1) + '</div>' +
-      bar('CALLERS', r.fanIn, maxOf(function (n) { return n.fanIn; }), String(r.fanIn), 'var(--dex-red)') +
-      bar('CALLS OUT', d.fanOut, maxOf(function (n) { return n.fanOut; }), String(d.fanOut), 'var(--blue)') +
-      bar('COVERAGE', cov, 100, covText(r), cov >= 50 ? 'var(--grass)' : 'var(--fire)') +
-      bar('CHURN 90D', r.churnCount, maxOf(function (n) { return n.risk.churnCount; }), String(r.churnCount), 'var(--yellow)') +
-      bar('BUS FACTOR', r.busFactor, 5, String(r.busFactor), r.busFactor <= 1 ? 'var(--fire)' : 'var(--grass)');
+      breakdownHtml(d, bar);
 
-    if (r.coverageIsProxy) {
+    if (r.coverageIsProxy && d.score >= 0) {
       html += '<div class="flag">NO lcov.info FOUND - coverage shown is a NAME PROXY, not a measured percentage.</div>';
     }
-    if (r.busFactor === 1 && r.gitResolved) {
+    if (r.busFactor === 1 && r.gitResolved && d.score >= 0) {
       html += '<div class="flag">BUS FACTOR 1 - one person has ever touched these lines.</div>';
     }
     if (r.authors && r.authors.length) {
       html += '<div class="flag" style="background:var(--gb-green)">ASK ' + esc(r.authors[0].name.toUpperCase()) +
         ' - ' + r.authors[0].commits + ' of ' + totalCommits(r) + ' commits here.</div>';
     }
-    html += '<div class="formula">score = ' + r.fanIn + '*2 + (100-' + (r.coveragePct === null ? 50 : r.coveragePct) +
-      ')/10 + ' + r.churnCount + ' - ' + (r.busFactor > 1 ? 2 : 0) + ' = ' + d.score + '</div>';
     html += '<button class="btn wide" id="lineageBtn">VIEW LINEAGE</button>';
     html += '<button class="btn wide" id="gitBtn">GIT HISTORY</button>';
     html += '<button class="btn wide" id="llmMdBtn">LLM MD</button>';
@@ -1344,7 +1380,16 @@ window.addEventListener('error', function (e) {
     $('gitBtn').onclick = function () { focusGit(d); };
     $('llmMdBtn').onclick = function () { renderLlmMarkdown(d); };
     var openBtn = $('open');
-    if (openBtn) { openBtn.onclick = function () { vscode.postMessage({ type: 'reveal', id: d.id }); }; }
+    if (openBtn) { openBtn.onclick = function () { vscode.postMessage({ type: 'reveal', id: d.id, focus: true }); }; }
+    var src = functionSourcesById && functionSourcesById[d.id];
+    if (standalone && src) {
+      var srcCard = document.createElement('div');
+      srcCard.className = 'llm-card';
+      srcCard.innerHTML = '<div class="cardhead">SOURCE - ' + esc(d.file) + ':' + (src.start + 1) + '</div>' +
+        '<pre class="code">' + src.lines.map(function (l, i) { return '<span class="ln">' + (src.start + i + 1) + '</span>' + esc(l); }).join('\n') + '</pre>' +
+        (src.truncated ? '<div class="empty">Showing the first ' + src.lines.length + ' lines.</div>' : '');
+      $('entry').appendChild(srcCard);
+    }
 
     var callers = callersOf(d), callees = calleesOf(d);
     var list = function (arr) {
@@ -1552,15 +1597,11 @@ window.addEventListener('error', function (e) {
     var refs = (d.risk && d.risk.testRefs) || [];
     tip.innerHTML =
       '<h4>' + esc(d.name) + '</h4>' +
-      '<span class="badge" style="background:' + TIER_COLOR[d.tier] + (d.tier === 'critical' ? ';color:#fff' : '') +
+      '<span class="badge" style="background:' + TIER_COLOR[d.tier] + (d.tier === 'critical' || d.tier === 'unused' ? ';color:#fff' : '') +
         '">' + TIER_NAME[d.tier] + '</span>' +
-      '<span class="badge" style="background:var(--cream);margin-left:5px">RISK ' + d.score + '</span>' +
+      '<span class="badge" style="background:var(--cream);margin-left:5px">' + (d.score < 0 ? 'SCORE ' : 'RISK ') + d.score + '</span>' +
       '<div class="path" style="margin:7px 0 4px">' + esc(d.file) + ':' + (d.startLine + 1) + '</div>' +
-      tipBar('CALLERS', r.fanIn, maxOf(function (n) { return n.fanIn; }), String(r.fanIn), 'var(--dex-red)') +
-      tipBar('CALLS OUT', d.fanOut, maxOf(function (n) { return n.fanOut; }), String(d.fanOut), 'var(--blue)') +
-      tipBar('COVERAGE', cov, 100, covText(r), cov >= 50 ? 'var(--grass)' : 'var(--fire)') +
-      tipBar('CHURN 90D', r.churnCount, maxOf(function (n) { return n.risk.churnCount; }), String(r.churnCount), 'var(--yellow)') +
-      tipBar('BUS', r.busFactor, 5, String(r.busFactor), r.busFactor <= 1 ? 'var(--fire)' : 'var(--grass)') +
+      breakdownHtml(d, tipBar) +
       (lead ? '<div style="margin-top:6px">LEAD: ' + esc(lead.name) + ' (' + lead.commits + ')</div>' : '') +
       (refs.length ? '<div style="margin-top:8px;color:var(--muted)">TESTS: ' + refs.length + '</div>' : '') +
       '<div class="acts">' +
@@ -1667,7 +1708,7 @@ window.addEventListener('error', function (e) {
     $('lineageBody').querySelectorAll('.chip[data-id]').forEach(function (c) {
       c.addEventListener('click', function () {
         var n = byId.get(c.dataset.id);
-        if (n && n.id !== d.id) { openLineage(n); }
+        if (n && n.id !== d.id) { if (!standalone) { vscode.postMessage({ type: 'reveal', id: n.id }); } openLineage(n); }
       });
     });
     $('lineageBack').style.visibility = lineageStack.length ? 'visible' : 'hidden';
@@ -2575,6 +2616,7 @@ window.addEventListener('error', function (e) {
       '<div class="ctech">' + esc(opts.tech) + '</div>' +
       '<div class="ctags">' + opts.tags.map(function (t) { return '<span class="ctag">' + esc(t) + '</span>'; }).join('') + '</div>' +
       (opts.warn ? '<span class="cwarn">! ' + opts.warn + '</span>' : '') +
+      (opts.port ? '<span class="cport" title="connect this service to another">&#8644;</span>' : '') +
       (opts.removable ? '<span class="cx" title="remove">x</span>' : '');
     return el;
   }
@@ -2583,7 +2625,7 @@ window.addEventListener('error', function (e) {
   function makeDraggable(el, onMove, onClick) {
     var sx = 0, sy = 0, ox = 0, oy = 0, moved = false, down = false;
     el.addEventListener('mousedown', function (e) {
-      if (e.target.classList.contains('cx')) { return; }
+      if (e.target.classList.contains('cx') || e.target.classList.contains('cport')) { return; }
       down = true; moved = false; sx = e.clientX; sy = e.clientY; ox = el.offsetLeft; oy = el.offsetTop;
       e.preventDefault();
     });
@@ -2602,13 +2644,14 @@ window.addEventListener('error', function (e) {
     });
   }
 
-  function drawDeps(hold, pairs) {
+  function drawDeps(hold, pairs, onPick) {
     var svg = hold.querySelector('svg.dvlinks');
     if (!svg) {
       svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
       svg.setAttribute('class', 'dvlinks');
       hold.insertBefore(svg, hold.firstChild);
     }
+    svg.style.pointerEvents = onPick ? 'none' : '';
     var parts = ['<defs><marker id="dvarrow" viewBox="0 -5 10 10" refX="9" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,-4L9,0L0,4" fill="#fff"></path></marker></defs>'];
     pairs.forEach(function (pr) {
       var a = hold.querySelector('.crate[data-key="' + pr[0] + '"]'), b = hold.querySelector('.crate[data-key="' + pr[1] + '"]');
@@ -2617,10 +2660,22 @@ window.addEventListener('error', function (e) {
       var bx = b.offsetLeft + b.offsetWidth / 2, by = b.offsetTop + b.offsetHeight / 2;
       var down = by >= ay;
       var y1 = down ? a.offsetTop + a.offsetHeight : a.offsetTop, y2 = down ? b.offsetTop : b.offsetTop + b.offsetHeight;
-      parts.push('<path d="M ' + ax + ' ' + y1 + ' C ' + ax + ' ' + ((y1 + y2) / 2) + ', ' + bx + ' ' + ((y1 + y2) / 2) + ', ' + bx + ' ' + y2 +
-        '" stroke="#fff" stroke-width="3" fill="none" stroke-dasharray="7 5" marker-end="url(#dvarrow)"></path>');
+      var d = 'M ' + ax + ' ' + y1 + ' C ' + ax + ' ' + ((y1 + y2) / 2) + ', ' + bx + ' ' + ((y1 + y2) / 2) + ', ' + bx + ' ' + y2;
+      if (onPick) {
+        // A fat invisible path underneath, so the thin dashed line is easy to hit.
+        parts.push('<path class="dvhit" d="' + d + '" stroke="transparent" stroke-width="16" fill="none" data-from="' + esc(pr[0]) + '" data-to="' + esc(pr[1]) + '" style="pointer-events:stroke;cursor:pointer"></path>');
+      }
+      parts.push('<path d="' + d + '" stroke="#fff" stroke-width="3" fill="none" stroke-dasharray="7 5" marker-end="url(#dvarrow)"></path>');
     });
     svg.innerHTML = parts.join('');
+    if (onPick) {
+      svg.querySelectorAll('.dvhit').forEach(function (hit) {
+        hit.addEventListener('click', function (e) { e.stopPropagation(); onPick(hit.dataset.from, hit.dataset.to); });
+        var title = document.createElementNS('http://www.w3.org/2000/svg', 'title');
+        title.textContent = 'Click to disconnect';
+        hit.appendChild(title);
+      });
+    }
   }
 
   function shipEl(label, cls) {
@@ -2800,6 +2855,8 @@ window.addEventListener('error', function (e) {
   /* ---------------------------------------------------------------- builder */
   var stack = { projectName: 'my-app', mode: 'development', services: [] };
   var stackSel = null, outFile = 'docker-compose.yml', stackIds = 0;
+  // Service we are connecting FROM, while the user picks what it should talk to.
+  var linkFrom = null;
   try {
     var saved = window.localStorage && window.localStorage.getItem('blastradius.stack');
     if (saved) { stack = JSON.parse(saved); stackIds = stack.services.length + 1; }
@@ -2808,10 +2865,43 @@ window.addEventListener('error', function (e) {
     try { window.localStorage && window.localStorage.setItem('blastradius.stack', JSON.stringify(stack)); } catch (e) { /* ignore */ }
   }
 
+  /** The connections in force: the user's own, or the defaults until they edit one. */
+  function stackLinks() {
+    return BlastDocker.linksOf(stack);
+  }
+
+  function setLinks(list) {
+    stack.links = list.map(function (l) { return { from: l.from, to: l.to }; });
+    saveStack();
+  }
+
+  /** Connect two services, or disconnect them if they already are. */
+  function toggleLink(from, to) {
+    if (!from || !to || from === to) { return; }
+    var links = stackLinks();
+    var has = links.some(function (l) { return l.from === from && l.to === to; });
+    setLinks(has
+      ? links.filter(function (l) { return !(l.from === from && l.to === to); })
+      // One direction at a time: connecting b->a replaces a->b.
+      : links.filter(function (l) { return !(l.from === to && l.to === from); }).concat([{ from: from, to: to }]));
+    renderBuilder();
+  }
+
+  function serviceName(id) {
+    var sv = stack.services.filter(function (s) { return s.id === id; })[0];
+    return sv ? sv.name : id;
+  }
+
   function addService(templateId) {
     if (typeof BlastDocker === 'undefined') { return; }
     var svc = BlastDocker.newService(templateId, stack, 's' + (++stackIds) + '-' + Date.now());
     stack.services.push(svc);
+    // Connections are already pinned: wire the newcomer the obvious way, then the
+    // user can change it like any other connection.
+    if (stack.links) {
+      var added = BlastDocker.defaultLinks(stack.services).filter(function (l) { return l.from === svc.id || l.to === svc.id; });
+      setLinks(stack.links.concat(added));
+    }
     stackSel = svc.id;
     outFile = 'docker-compose.yml';
     saveStack();
@@ -2868,29 +2958,41 @@ window.addEventListener('error', function (e) {
         var tags = [];
         if (['database', 'cache', 'queue'].indexOf(t.kind) === -1 || sv.options.publish !== false) { tags.push('localhost:' + sv.hostPort); }
         if (sv.folder) { tags.push('./' + sv.folder); }
-        var el = crateEl({ key: sv.id, name: sv.name, tech: t.label, tags: tags, color: t.color, selected: stackSel === sv.id, removable: true });
+        var el = crateEl({ key: sv.id, name: sv.name, tech: t.label, tags: tags, color: t.color,
+          selected: stackSel === sv.id, removable: true, port: true });
+        if (linkFrom === sv.id) { el.classList.add('linking'); }
         return { el: el, role: t.kind, key: sv.id, pos: dvPositions['b:' + sv.id] };
       });
       layoutCrates(hold, items);
-      var pairs = [];
-      var kinds = {};
-      stack.services.forEach(function (sv) { kinds[sv.id] = BlastDocker.templateById(sv.template).kind; });
-      stack.services.forEach(function (a) {
-        stack.services.forEach(function (b) {
-          if (kinds[a.id] === 'backend' && ['database', 'cache', 'queue'].indexOf(kinds[b.id]) !== -1) { pairs.push([a.id, b.id]); }
-          if (kinds[a.id] === 'frontend' && kinds[b.id] === 'backend') { pairs.push([a.id, b.id]); }
-        });
-      });
-      drawDeps(hold, pairs);
+      var pairs = stackLinks().map(function (l) { return [l.from, l.to]; });
+      drawDeps(hold, pairs, function (from, to) { toggleLink(from, to); });
       items.forEach(function (it) {
-        makeDraggable(it.el, function () { dvPositions['b:' + it.key] = { x: it.el.offsetLeft, y: it.el.offsetTop }; drawDeps(hold, pairs); },
-          function () { stackSel = it.key; renderBuilder(); });
+        makeDraggable(it.el, function () { dvPositions['b:' + it.key] = { x: it.el.offsetLeft, y: it.el.offsetTop }; drawDeps(hold, pairs, function (f, t2) { toggleLink(f, t2); }); },
+          function () {
+            // While connecting, a click on another crate finishes the connection.
+            if (linkFrom && linkFrom !== it.key) { var from = linkFrom; linkFrom = null; toggleLink(from, it.key); return; }
+            linkFrom = null;
+            stackSel = it.key;
+            renderBuilder();
+          });
+        var portBtn = it.el.querySelector('.cport');
+        if (portBtn) {
+          portBtn.onclick = function (e) {
+            e.stopPropagation();
+            linkFrom = linkFrom === it.key ? null : it.key;
+            renderBuilder();
+          };
+        }
         var x = it.el.querySelector('.cx');
         if (x) {
           x.onclick = function (e) {
             e.stopPropagation();
             stack.services = stack.services.filter(function (sv) { return sv.id !== it.key; });
+            if (stack.links) {
+              stack.links = stack.links.filter(function (l) { return l.from !== it.key && l.to !== it.key; });
+            }
             if (stackSel === it.key) { stackSel = null; }
+            if (linkFrom === it.key) { linkFrom = null; }
             saveStack();
             renderBuilder();
           };
@@ -2923,6 +3025,20 @@ window.addEventListener('error', function (e) {
           return '<div class="formrow"><span>' + esc(o.label) + '</span><input data-opt="' + o.key + '" value="' + esc(String(v)) + '"/></div>';
         }).join('') + '</div>';
     }
+    if (stack.services.length > 1) {
+      var links = stackLinks();
+      html += '<div class="fsection"><h3>CONNECTIONS</h3>' +
+        '<div class="explain">' + (linkFrom
+          ? 'Connecting from <b>' + esc(serviceName(linkFrom)) + '</b> - click the service it should talk to.'
+          : 'Click the yellow arrows on a service, then click what it talks to. Click a line to disconnect.') + '</div>' +
+        (links.length
+          ? links.map(function (l) {
+              return '<div class="frow"><span class="grow">' + esc(serviceName(l.from)) + ' &#8594; ' + esc(serviceName(l.to)) + '</span>' +
+                '<button class="btn dvunlink" data-from="' + esc(l.from) + '" data-to="' + esc(l.to) + '">DISCONNECT</button></div>';
+            }).join('')
+          : '<div class="empty">Nothing is connected. Each service runs on its own.</div>') +
+        '<button class="btn wide" id="dvAutoLink">AUTO-CONNECT (START OVER)</button></div>';
+    }
     if (gen.warnings.length) {
       html += '<div class="warnbox">' + gen.warnings.map(esc).join('<br/>') + '</div>';
     }
@@ -2947,6 +3063,13 @@ window.addEventListener('error', function (e) {
     }).join('') + '</div>';
     out.innerHTML = html;
 
+    out.querySelectorAll('.dvunlink').forEach(function (b) {
+      b.onclick = function () { toggleLink(b.dataset.from, b.dataset.to); };
+    });
+    var auto = $('dvAutoLink');
+    if (auto) {
+      auto.onclick = function () { stack.links = undefined; linkFrom = null; saveStack(); renderBuilder(); };
+    }
     out.querySelectorAll('.filetabs .btn').forEach(function (b) { b.onclick = function () { outFile = b.dataset.file; renderBuilderOutput(); }; });
     var copyFile = $('dvCopyFile');
     if (copyFile) { copyFile.onclick = function () { copyText(current.content, copyFile); }; }
@@ -2976,7 +3099,7 @@ window.addEventListener('error', function (e) {
   $('dvRescan').addEventListener('click', function () { devopsAsked = false; devopsData = null; requestDevops(); });
   $('dvModeDev').addEventListener('click', function () { stack.mode = 'development'; $('dvModeDev').classList.add('on'); $('dvModeProd').classList.remove('on'); saveStack(); renderBuilder(); });
   $('dvModeProd').addEventListener('click', function () { stack.mode = 'production'; $('dvModeProd').classList.add('on'); $('dvModeDev').classList.remove('on'); saveStack(); renderBuilder(); });
-  $('dvClear').addEventListener('click', function () { stack.services = []; stackSel = null; saveStack(); renderBuilder(); });
+  $('dvClear').addEventListener('click', function () { stack.services = []; stack.links = undefined; stackSel = null; linkFrom = null; saveStack(); renderBuilder(); });
   $('dvWrite').addEventListener('click', function () {
     if (typeof BlastDocker === 'undefined') { return; }
     var gen = BlastDocker.generateStack(stack);
@@ -3086,6 +3209,7 @@ window.addEventListener('error', function (e) {
     if (msg.devopsMode === 'builder' || msg.devopsMode === 'project') { setDvMode(msg.devopsMode); }
     if (msg.focusTab) { showTab(msg.focusTab); }
     if (msg.llm && msg.llm.features) { featureLlmDocs = msg.llm.features; }
+    if (msg.sources) { functionSourcesById = msg.sources; }
     if (msg.features) { featureData = msg.features; if (tab === 'features') { renderFeatures(); } }
     if (msg.backups) {
       backupData = msg.backups;
@@ -3112,7 +3236,7 @@ window.addEventListener('error', function (e) {
     if (msg.focus) {
       var target = byId.get(msg.focus);
       if (target) {
-        select(target, true);
+        select(target, true, true);
         setTimeout(function () { centerOn(target); }, 900);
       }
     }

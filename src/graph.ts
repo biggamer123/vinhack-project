@@ -23,6 +23,10 @@ export interface FunctionNode {
    * almost always means the declaration, not itself.
    */
   kind: "declaration" | "binding";
+  /** Exported from its module (export keyword, module.exports, or a capitalised Go name). */
+  exported: boolean;
+  /** Invoked by a framework, runtime or test runner: main, default exports, route handlers, tests. */
+  entry: boolean;
   /** ids of functions that call this one. */
   callers: Set<string>;
   /** ids of functions this one calls. */
@@ -43,13 +47,25 @@ export interface CallSite {
   line: number;
   /** Number of arguments passed (recorded now; used by Stage 4's mismatch detector). */
   argCount: number;
+  /**
+   * A use rather than a call: the function passed as a value (a callback, a
+   * router registration, a JSX tag like <Card />). It is a dependency all the
+   * same - if Card breaks, every page rendering it breaks.
+   */
+  use?: boolean;
 }
 
 /** What the indexer produces for one file. */
 export interface FileIndex {
   nodes: FunctionNode[];
   callSites: CallSite[];
+  /** How many times each identifier appears in the file. */
+  refs: Record<string, number>;
 }
+
+/** Whether a function is in use; see computeRisk in ./score and usageStatus below. */
+import type { UsageStatus } from "./score";
+export type { UsageStatus };
 
 export class CallGraph {
   /** id -> node */
@@ -58,6 +74,12 @@ export class CallGraph {
   private byFile = new Map<string, Set<string>>();
   /** absolute file path -> call sites found in that file */
   private callSitesByFile = new Map<string, CallSite[]>();
+  /** absolute file path -> identifier occurrence counts in that file */
+  private refsByFile = new Map<string, Record<string, number>>();
+  /** identifier -> occurrences across the workspace, rebuilt lazily */
+  private refTotals: Map<string, number> | null = null;
+  /** Bumped whenever anything changes, so cached scores know when to recompute. */
+  revision = 0;
   /** function name -> ids sharing that name (for cross-file fallback resolution) */
   private byName = new Map<string, Set<string>>();
 
@@ -123,6 +145,8 @@ export class CallGraph {
     }
     this.byFile.set(file, ids);
     this.callSitesByFile.set(file, index.callSites);
+    this.refsByFile.set(file, index.refs || {});
+    this.refTotals = null;
   }
 
   /** Forget a file entirely. */
@@ -143,9 +167,64 @@ export class CallGraph {
     }
     this.byFile.delete(file);
     this.callSitesByFile.delete(file);
+    this.refsByFile.delete(file);
+    this.refTotals = null;
     if (!opts.keepEdgesStale) {
       this.resolveEdges();
     }
+  }
+
+  /**
+   * Times a function's name is used anywhere in the workspace, not counting the
+   * declarations themselves. Name-based and therefore conservative: a common name
+   * used elsewhere keeps a function "in use", which is the safe direction for a
+   * signal that suggests deleting code.
+   */
+  referenceCount(node: FunctionNode): number {
+    if (!this.refTotals) {
+      this.refTotals = new Map();
+      for (const refs of this.refsByFile.values()) {
+        for (const [name, count] of Object.entries(refs)) {
+          this.refTotals.set(name, (this.refTotals.get(name) || 0) + count);
+        }
+      }
+    }
+    const total = this.refTotals.get(node.name) || 0;
+    const declarations = this.byName.get(node.name)?.size || 0;
+    return Math.max(0, total - declarations);
+  }
+
+  usageStatus(node: FunctionNode): UsageStatus {
+    if (node.entry) {
+      return "entry";
+    }
+    if (node.callers.size > 0 || this.referenceCount(node) > 0) {
+      return "active";
+    }
+    return node.exported ? "exported-unused" : "unused";
+  }
+
+  /**
+   * Functions that reach this one through calls, however indirectly - the real
+   * blast radius. Capped, because impact is scored on a log scale that has long
+   * saturated by then.
+   */
+  reachCount(id: string, cap = 256): number {
+    const seen = new Set<string>();
+    const queue = [...(this.nodes.get(id)?.callers || [])];
+    while (queue.length && seen.size < cap) {
+      const next = queue.shift() as string;
+      if (next === id || seen.has(next)) {
+        continue;
+      }
+      seen.add(next);
+      for (const caller of this.nodes.get(next)?.callers || []) {
+        if (!seen.has(caller)) {
+          queue.push(caller);
+        }
+      }
+    }
+    return seen.size;
   }
 
   /**
@@ -158,6 +237,7 @@ export class CallGraph {
    * Unresolved names (library calls, built-ins, dynamic dispatch) are dropped.
    */
   resolveEdges(): void {
+    this.revision++;
     for (const node of this.nodes.values()) {
       node.callers.clear();
       node.callees.clear();
@@ -215,6 +295,8 @@ export class CallGraph {
     this.nodes.clear();
     this.byFile.clear();
     this.callSitesByFile.clear();
+    this.refsByFile.clear();
+    this.refTotals = null;
     this.byName.clear();
   }
 }

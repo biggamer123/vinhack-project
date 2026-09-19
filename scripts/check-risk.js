@@ -10,7 +10,7 @@ const fs = require("fs");
 const { indexSource, initParser } = require("../out/indexer");
 const { CallGraph } = require("../out/graph");
 const { parseLcov, coverageForRange } = require("../out/lcov");
-const { computeScore, tierFor } = require("../out/score");
+const { assessFunction } = require("../out/assess");
 const { findRepoRoot, historyForRange } = require("../out/git");
 
 const root = path.resolve(process.argv[2] || ".");
@@ -57,44 +57,44 @@ function walk(dir, acc = []) {
       : null;
     const churnCount = history ? history.churnCount : 0;
     const busFactor = history ? history.busFactor : 0;
-    const score = computeScore({
-      fanIn: node.callers.size,
+    const b = assessFunction(graph, node, {
       coveragePct,
+      coverageIsProxy: false,
       churnCount,
       busFactor,
+      gitResolved: !!history,
     });
     rows.push({
       node,
       coveragePct,
       churnCount,
       busFactor,
-      score,
-      tier: tierFor(score),
+      b,
+      score: b.score,
+      tier: b.tier,
     });
   }
 
   rows.sort((a, b) => b.score - a.score);
-  console.log("SCORE  TIER      FANIN  COV   CHURN  BUS  FUNCTION");
-  for (const r of rows) {
+  console.log("SCORE  TIER      USAGE            FANIN COVER CHURN BUS LINES  FUNCTION");
+  const line = (r) =>
     console.log(
       String(r.score).padStart(5),
       r.tier.padEnd(9),
-      String(r.node.callers.size).padStart(5),
-      String(r.coveragePct === null ? "-" : r.coveragePct + "%").padStart(5),
-      String(r.churnCount).padStart(6),
-      String(r.busFactor).padStart(4),
-      " " +
-        r.node.name +
-        "  (" +
-        path.relative(root, r.node.file) +
-        ":" +
-        (r.node.startLine + 1) +
-        ")",
+      r.b.usage.padEnd(16),
+      String(r.b.fanIn).padStart(5),
+      String(r.b.coveragePct ?? "-").padStart(5),
+      String(r.b.churnCount).padStart(5),
+      String(r.b.busFactor).padStart(3),
+      String(r.b.lines).padStart(5),
+      " " + r.node.name + "  (" + path.relative(root, r.node.file) + ":" + (r.node.startLine + 1) + ")",
     );
+  const limit = Number(process.env.ROWS || 1e9);
+  rows.slice(0, limit).forEach(line);
+  if (rows.length > limit) {
+    console.log("  ...");
+    rows.filter((r) => r.score < 0).forEach(line);
   }
-  const counts = rows.reduce(
-    (acc, r) => ((acc[r.tier] = (acc[r.tier] || 0) + 1), acc),
-    {},
-  );
+  const counts = rows.reduce((acc, r) => ((acc[r.tier] = (acc[r.tier] || 0) + 1), acc), {});
   console.log("\ntiers:", counts);
 })();

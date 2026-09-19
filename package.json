@@ -2,7 +2,7 @@
   "name": "blast-radius",
   "displayName": "Blast Radius",
   "description": "Call-graph aware risk visualization for your codebase.",
-  "version": "0.8.1",
+  "version": "0.10.0",
   "publisher": "blastradius",
   "private": true,
   "engines": {
@@ -69,6 +69,11 @@
         "icon": "$(tag)"
       },
       {
+        "command": "blastradius.tagCommitFeature",
+        "title": "Blast Radius: Tag a Commit to a Feature…",
+        "category": "Blast Radius"
+      },
+      {
         "command": "blastradius.backupsEnable",
         "title": "Blast Radius: Enable Backups"
       },
@@ -104,6 +109,11 @@
           "minimum": 1,
           "maximum": 240,
           "description": "How often, in minutes, to back up the working tree onto the local blastradiusbackups branch while backups are enabled."
+        },
+        "blastradius.features.askOnCommit": {
+          "type": "boolean",
+          "default": true,
+          "description": "After each commit, ask which feature it belongs to and record the answer in .blastradius/FEATURES.md (shared with your team through git)."
         }
       }
     },

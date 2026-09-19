@@ -42,16 +42,24 @@ If no `lcov.info` exists, coverage falls back to a **proxy**: does the function'
 appear in a file under `test/`, `tests/`, `__tests__/` or `spec/`? The UI always labels
 this as a proxy - it is never shown as a percentage, and never conflated with real data.
 
-The formula lives in one commented function, [src/score.ts](src/score.ts):
+### The risk score
 
 ```
-score = fanIn*2 + (100 - coveragePct)/10 + churnCount - (busFactor > 1 ? 2 : 0)
+score = fanIn*2 + (100 - coverage)/10 + churn - (busFactor > 1 ? 2 : 0)
 ```
 
-Unknown coverage counts as 50%. Tiers: `<15` low, `15–30` medium, `30–50` high, `50+`
-critical. The CodeLens shows `risk 50 · 18 callers · 0% covered · 4 changes/90d · bus
-factor 1`; the hover spells the same thing out in plain language, including the
-arithmetic.
+Each caller is 2 points, 0% coverage adds 10 (unknown counts as 50%), each commit in the last
+90 days adds 1, and more than one author takes 2 off. Tiers: below 15 low, 15-29 medium,
+30-49 high, 50+ critical. The formula lives in [src/score.ts](src/score.ts).
+
+**Unused code scores below zero: `score = -lines`.** A function is unused when nothing calls
+it in any way - no call, callback, JSX tag or router registration - and it is not an entry
+point, test or generated code. Exported functions nobody imports are flagged too, with a
+reminder to check nothing outside the workspace uses them. Lines drawn from an unused node
+in the graph go *out* to what it calls. Pick the **UNUSED** tier chip to list them all.
+
+Authors are grouped per person: a commit merged on GitHub (a `users.noreply.github.com`
+email) counts under the same person as their normal email.
 
 ## Stage 3 - the graph webview
 
@@ -84,14 +92,14 @@ Needs **Node 18+**, **git**, and **VS Code 1.85+**.
 ```bash
 git clone https://github.com/Advik-Gupta/blast-radius.git
 cd blast-radius
-npm run setup          # install deps, compile, restore the demo repo's git history
+npm run setup          # install deps, compile, build the demo repo's git history
 ```
 
-`npm run setup:demo` is the part worth knowing about: `demo/` is a repo-within-a-repo
-whose 32 commits by 3 authors are what make churn and bus factor real. A parent clone
-cannot carry a nested `.git`, so that history ships as `demo-history.bundle` and is
-unpacked into `demo/.git` by that script. Skip it and the demo still runs, but every
-function reports churn 0 and bus factor 0.
+`npm run setup:demo` is the part worth knowing about: `demo/` is a repo-within-a-repo whose
+history is what makes churn, bus factor, features, backups and the command log real. A parent
+clone cannot carry a nested `.git`, so [scripts/build-demo.js](scripts/build-demo.js) builds it
+from the files in `demo/`. Rebuild it any time with `node scripts/build-demo.js --force` (dates
+are relative to when it runs, so the churn window stays current).
 
 Then either press **F5** in VS Code to run it from source, or install it properly:
 
@@ -143,6 +151,26 @@ refactor(users): split the repository layer
 **Blast Radius: Write Tagged Commit Message** (also the tag button in the Source
 Control title bar) walks you through type, title and optional scope, then fills the
 commit message box. It never commits.
+
+### Tagging a commit to a feature
+
+You do not have to write commit messages in the convention. **After every commit, Blast
+Radius asks which feature it belongs to**: pick one of the features this repository
+already has, or type a new name (and the kind of work it is). The answer is recorded in
+
+```
+.blastradius/FEATURES.md
+```
+
+a plain Markdown file - a heading per feature, a table of its commits - that you commit
+with your code. Everyone who pulls the repository then sees the same features, so the
+FEATURES tab agrees across the team. Edit it by hand whenever you like.
+
+- The prompt is skipped for commits whose message already names a feature, and for
+  commits that arrive from someone else through a pull.
+- Turn the prompt off with the `blastradius.features.askOnCommit` setting.
+- **Blast Radius: Tag a Commit to a Feature…** tags any of the last 50 commits, so you
+  can fill in history you have already written.
 
 **Related tests.** The dex entry lists the test cases that mention the selected function
 (an `it(...)`/`test(...)` block naming it) and opens them on click. They are found whether
@@ -260,16 +288,41 @@ the header carries the capture time. Re-run the command after a re-index to refr
 
 ## The demo repo
 
-[demo/](demo/) is a small blog engine - 60 functions, 247 call sites, 12 source files -
-with its **own git history** (24 commits, 3 authors, dated across the churn window) and a
-real `coverage/lcov.info`. It is built so every tier appears for real, not by fiat:
+[demo/](demo/) is **Inkwell**, a small blogging platform built so every view has real data:
 
-| function                          | why                                                                   |
-| --------------------------------- | --------------------------------------------------------------------- |
-| `trace` (telemetry.js)            | 18 callers, 0% covered, 4 recent commits, bus factor 1 → **critical** |
-| `recordChange` (audit.js)         | 11 callers, 0% covered, 3 commits → **high**                          |
-| `ok`, `getPost`, `tokenize`       | moderate fan-in, no/low coverage → **medium**                         |
-| `slugify`, `hasTitle`, `wrapFeed` | fully covered, stable, low fan-in → **low**                           |
+- **Code:** a Node API (auth, comments, cache, rate limiting, RSS, admin reports, Postgres
+  repositories), a React + TanStack Query frontend and a Go mailer worker.
+- **Git history:** about 65 commits over seven months by six people. Two PRs are merged,
+  one on GitHub under a noreply email, so it shows identity merging. Hotspots are edited again
+  and again, and most commits use the `feature(scope): title` convention.
+- **Backups and command log:** snapshots on `blastradiusbackups`, some with uncommitted work.
+  The reflog has branches, merges, a cherry-pick, an amend, a hard reset and a stash, and a few
+  terminal commands are in the events log.
+- **Coverage:** a generated `coverage/lcov.info`. Format, render and password code are fully
+  covered, comments and cache partly, and telemetry, audit and notifications not at all.
+- **Schemas:** Postgres migrations, a Prisma analytics schema and Mongoose models.
+- **DevOps:** compose with api, web, mailer, Postgres, Redis, Mongo, nginx and Mailpit, plus
+  three Dockerfiles.
+
+| function | why |
+| --- | --- |
+| `trace`, `recordChange` | called almost everywhere, 0% covered, edited often |
+| `legacyRow`, `shouldEmit` | untested, changed many times in the last 90 days |
+| `slugify`, `hashPassword`, `threadComments` | fully covered, stable |
+| `formatDateLegacy`, `LegacyBanner`, `useLocalDrafts`, `weeklyReportV1` | unused - negative scores |
+
+### Editing the connections
+
+In the **BUILDER**, the arrows between services are yours to change - useful as soon as
+you have two backends and only one of them should use the cache:
+
+- Click the yellow arrows on a service, then click the service it should talk to.
+- Click a connection line (or **DISCONNECT** in the list) to remove it.
+- **AUTO-CONNECT** goes back to the obvious wiring.
+
+Connections are not decoration: `depends_on` and the environment variables follow them,
+so a backend you disconnect from Redis stops getting `REDIS_URL`, and a database nothing
+connects to is reported as a warning.
 
 ## Checking it without the dev host
 

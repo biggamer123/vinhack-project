@@ -11,7 +11,7 @@ const { JSDOM } = require("jsdom");
 const { indexSource, initParser } = require("../out/indexer");
 const { CallGraph } = require("../out/graph");
 const { parseLcov, coverageForRange } = require("../out/lcov");
-const { computeScore, tierFor } = require("../out/score");
+const { assessFunction } = require("../out/assess");
 const { findRepoRoot, historyForRange } = require("../out/git");
 const { buildStandaloneHtml, removeCdnScripts } = require("../out/standalone");
 const { PROTOCOL_VERSION } = require("../out/protocol");
@@ -123,7 +123,15 @@ async function buildPayload() {
         : [],
       gitResolved: !!h,
     };
-    const score = computeScore(risk);
+    const breakdown = assessFunction(graph, n, {
+      coveragePct: risk.coveragePct,
+      coverageIsProxy: risk.coverageIsProxy,
+      churnCount: risk.churnCount,
+      busFactor: risk.busFactor,
+      gitResolved: !!risk.gitResolved,
+    });
+    risk.breakdown = breakdown;
+    const score = breakdown.score;
     nodes.push({
       id: n.id,
       name: n.name,
@@ -133,7 +141,8 @@ async function buildPayload() {
       fanIn: n.callers.size,
       fanOut: n.callees.size,
       score,
-      tier: tierFor(score),
+      tier: breakdown.tier,
+      lines: n.endLine - n.startLine + 1,
       risk,
     });
     for (const c of n.callees) edges.push({ from: n.id, to: c });
@@ -219,7 +228,7 @@ async function buildPayload() {
     "entry shows a tier badge",
     entry.querySelector(".badge").textContent.length > 0,
   );
-  check("entry shows stat bars", entry.querySelectorAll(".statrow").length, 5);
+  check("entry shows the risk factor bars", [...entry.querySelectorAll(".statrow")].map((r) => r.firstChild.textContent.trim()).join(","), "CALLERS,CALLS OUT,COVERAGE,CHURN 90D,BUS FACTOR");
   check(
     "entry shows the score arithmetic",
     entry
@@ -485,7 +494,7 @@ async function buildPayload() {
   someCircle.dispatchEvent(new window.MouseEvent("mouseenter", { bubbles: true, clientX: 200, clientY: 200 }));
   const tip = doc.getElementById("tip");
   check("hover tooltip appears", tip.classList.contains("on"), true);
-  check("tooltip summarises risk", tip.innerHTML.includes("CALLERS") && tip.innerHTML.includes("RISK"), true);
+  check("tooltip summarises risk", tip.innerHTML.includes("CALLERS") && tip.innerHTML.includes("COVERAGE") && /RISK|SCORE/.test(tip.innerHTML), true);
   check("tooltip offers a git jump", !!tip.querySelector('[data-act="git"]'), true);
 
   // tooltip -> git tab, focused on that function
@@ -507,9 +516,13 @@ async function buildPayload() {
 
   // sort direction must match the header arrow: descending puts the biggest first
   click(doc.querySelector('.tab[data-tab="git"]'));
+  // An earlier step focused the table on one function; the whole list is what sorts.
+  const gitClear = doc.getElementById("gitClear");
+  if (gitClear) { click(gitClear); }
   const churnCol = [...doc.querySelectorAll("#gitTable tbody tr")].map((tr) =>
     Number(tr.children[0].textContent),
   );
+  check("GIT lists every function once the focus is cleared", churnCol.length > 1, true);
   check("GIT sorts churn descending", churnCol[0] >= churnCol[churnCol.length - 1] && churnCol[0] > 0, true);
   click(doc.querySelector('.tab[data-tab="index"]'));
   const riskCol = [...doc.querySelectorAll("#indexTable tbody tr")].map((tr) =>
@@ -1050,10 +1063,88 @@ async function buildPayload() {
     clickD(dD.querySelector('.palitem[data-template="go"]'));
     clickD(dD.querySelector('.palitem[data-template="postgres"]'));
     check("builder adds services in the webview", dD.querySelectorAll("#dvStage .crate").length, 2);
+
+    // connections: a second backend, then disconnect it from the database
+    clickD(dD.querySelector('.palitem[data-template="express"]'));
+    const linkRows = () => [...dD.querySelectorAll("#dvOut .frow")].map((r) => r.querySelector(".grow").textContent.trim());
+    const connections = () => linkRows().filter((t) => t.includes("\u2192"));
+    check("new services are connected by default", connections().length, 2);
+    check("the compose file wires both backends to the database",
+      (dD.querySelector("#dvOut pre.code") || { textContent: "" }).textContent.match(/DATABASE_URL/g).length, 2);
+    const unlink = dD.querySelector("#dvOut .dvunlink");
+    clickD(unlink);
+    check("disconnecting removes the connection", connections().length, 1);
+    check("...and the compose file follows",
+      ((dD.querySelector("#dvOut pre.code") || { textContent: "" }).textContent.match(/DATABASE_URL/g) || []).length, 1);
+    check("an unconnected database is called out", !!dD.querySelector("#dvOut .warnbox"), false);
+    clickD(dD.getElementById("dvAutoLink"));
+    check("AUTO-CONNECT puts the default connections back", connections().length, 2);
+    check("clicking a connection line disconnects it", typeof dD.querySelector("#dvStage svg.dvlinks .dvhit") === "object", true);
+
     clickD(dD.getElementById("dvBrowser"));
     const req = postedD.find((m) => m.type === "browser");
     check("OPEN IN BROWSER from the builder asks for the devops builder view", req && `${req.tab}/${req.devopsMode}`, "devops/builder");
-    check("...and carries the stack with it", req && req.stack.services.map((sv) => sv.template).join(","), "go,postgres");
+    check("...and carries the stack with it", req && req.stack.services.map((sv) => sv.template).join(","), "go,postgres,express");
+    global.window = window; global.document = window.document; global.SVGElement = window.SVGElement;
+  }
+
+  // ---------------- click opens the definition beside the graph ----------------
+  {
+    const postedR = [];
+    const domR = new JSDOM(html, { runScripts: "outside-only", pretendToBeVisual: true });
+    const wR = domR.window;
+    wR.d3 = require("d3");
+    applyDomShims(wR);
+    wR.acquireVsCodeApi = () => ({ postMessage: (m) => postedR.push(m) });
+    global.window = wR; global.document = wR.document; global.SVGElement = wR.SVGElement;
+    wR.eval(script);
+    wR.dispatchEvent(new wR.MessageEvent("message", { data: Object.assign({}, payload, { protocol: PROTOCOL_VERSION }) }));
+    await new Promise((r) => setTimeout(r, 250));
+    const dR = wR.document;
+    const clickR = (el) => el.dispatchEvent(new wR.MouseEvent("click", { bubbles: true }));
+    check("initial CodeLens focus does not re-open the file", postedR.filter((m) => m.type === "reveal").length, 0);
+
+    const target = payload.nodes[3];
+    clickR([...dR.querySelectorAll("g.node circle")].find((c) => c.__data__.id === target.id));
+    const click = postedR.filter((m) => m.type === "reveal").pop();
+    check("clicking a node opens its definition", click && click.id, target.id);
+    check("...beside the graph, keeping focus on it", click && !click.focus, true);
+
+    const railRow = dR.querySelectorAll("#railList .row")[1];
+    clickR(railRow);
+    check("clicking a function in the index opens it too", postedR.filter((m) => m.type === "reveal").pop().id, railRow.dataset.id);
+
+    clickR(dR.getElementById("open"));
+    check("OPEN IN EDITOR takes focus", postedR.filter((m) => m.type === "reveal").pop().focus, true);
+
+    // browser snapshot: nothing to open, so the source is shown in place
+    const srcId = payload.nodes[2].id;
+    wR.dispatchEvent(new wR.MessageEvent("message", { data: Object.assign({}, payload, {
+      protocol: PROTOCOL_VERSION, standalone: true,
+      sources: { [srcId]: { start: 4, lines: ["function demo() {", "  return 42;", "}"], truncated: false } },
+    }) }));
+    await new Promise((r) => setTimeout(r, 200));
+    const before = postedR.length;
+    clickR([...dR.querySelectorAll("g.node circle")].find((c) => c.__data__.id === srcId));
+    check("snapshot shows the function's source in place", dR.getElementById("entry").textContent.includes("return 42;"), true);
+    check("...with its real line numbers", dR.querySelector("#entry pre.code .ln").textContent, "5");
+    check("snapshot sends no reveal", postedR.length, before);
+
+    // unused functions read as removal candidates
+    const unusedNode = Object.assign({}, payload.nodes[0], {
+      id: "/x/dead.js:dead", name: "dead", score: -22, tier: "unused", lines: 22,
+      risk: Object.assign({}, payload.nodes[0].risk, { breakdown: { score: -22, tier: "unused", usage: "unused", fanIn: 0, lines: 22, coveragePct: null, churnCount: 0, busFactor: 1 } }),
+    });
+    wR.dispatchEvent(new wR.MessageEvent("message", { data: Object.assign({}, payload, { protocol: PROTOCOL_VERSION, nodes: [...payload.nodes, unusedNode] }) }));
+    await new Promise((r) => setTimeout(r, 250));
+    clickR([...dR.querySelectorAll("g.node circle")].find((c) => c.__data__.id === unusedNode.id));
+    const entryText = dR.getElementById("entry").textContent;
+    check("unused function says it is safe to remove", entryText.includes("NOTHING CALLS IT - SAFE TO REMOVE"), true);
+    check("unused function shows its negative score", entryText.includes("SCORE -22"), true);
+    check("unused function explains graph lines point out", entryText.includes("CALLED BY") && entryText.includes("score = -lines = -22"), true);
+    check("unused tier chip exists", !!dR.querySelector('.tierchip[data-tier="unused"]'), true);
+    const ghosts = payload.nodes.filter((n) => n.tier === "unused").length + 1;
+    check("HUD counts ghosts", dR.getElementById("hud").textContent.replace(/\s+/g, " ").includes(`GHOST ${ghosts}`), true);
     global.window = window; global.document = window.document; global.SVGElement = window.SVGElement;
   }
 

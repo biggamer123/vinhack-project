@@ -1,7 +1,7 @@
 // Called from nearly every module, covered by nothing, edited constantly.
 // Exactly the shape of function blast-radius is meant to flag.
 function trace(event, payload) {
-  const line = formatEvent(event, payload); // rev4
+  const line = formatEvent(event, payload);
   if (shouldEmit(event)) {
     sink().push(line);
   }
@@ -9,7 +9,7 @@ function trace(event, payload) {
 }
 
 function formatEvent(event, payload) {
-  return `[${event}] ` + JSON.stringify(payload || {}); // v5 // v4 // v3 // v2 // v1
+  return `[${event}] ` + JSON.stringify(payload || {});
 }
 
 function shouldEmit(event) {

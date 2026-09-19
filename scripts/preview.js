@@ -13,7 +13,7 @@ const { execFile } = require("child_process");
 const { indexSource, initParser } = require("../out/indexer");
 const { CallGraph } = require("../out/graph");
 const { parseLcov, coverageForRange } = require("../out/lcov");
-const { computeScore, tierFor } = require("../out/score");
+const { assessFunction } = require("../out/assess");
 const { findRepoRoot, historyForRange } = require("../out/git");
 const { buildStandaloneHtml } = require("../out/standalone");
 const { PROTOCOL_VERSION } = require("../out/protocol");
@@ -92,7 +92,15 @@ function walk(dir, acc = []) {
         : [],
       gitResolved: !!h,
     };
-    const score = computeScore(risk);
+    const breakdown = assessFunction(graph, n, {
+      coveragePct: risk.coveragePct,
+      coverageIsProxy: risk.coverageIsProxy,
+      churnCount: risk.churnCount,
+      busFactor: risk.busFactor,
+      gitResolved: !!risk.gitResolved,
+    });
+    risk.breakdown = breakdown;
+    const score = breakdown.score;
     nodes.push({
       id: n.id,
       name: n.name,
@@ -102,7 +110,8 @@ function walk(dir, acc = []) {
       fanIn: n.callers.size,
       fanOut: n.callees.size,
       score,
-      tier: tierFor(score),
+      tier: breakdown.tier,
+      lines: n.endLine - n.startLine + 1,
       risk,
     });
     for (const c of n.callees) edges.push({ from: n.id, to: c });
@@ -197,7 +206,7 @@ function walk(dir, acc = []) {
 
   const html = buildStandaloneHtml(
     template,
-    { type: "graph", nodes, edges, summary, schema, features, backups: backupsPayload, llm: { features: llmDocs || {} }, protocol: PROTOCOL_VERSION, version: "preview" },
+    { type: "graph", nodes, edges, summary, schema, features, backups: backupsPayload, llm: { features: llmDocs || {} }, sources: require("../out/sources").functionSources(graph), protocol: PROTOCOL_VERSION, version: "preview" },
     new Date().toLocaleString(),
   );
 

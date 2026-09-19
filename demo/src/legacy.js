@@ -2,7 +2,7 @@ const { truncate } = require('./format');
 const { trace } = require('./telemetry');
 const { recordChange } = require('./audit');
 
-// Untested, frequently patched: the demo's intended "critical risk" hotspot.
+// Untested and patched every few weeks - the export format nobody owns.
 function legacyExport(store, options) {
   trace('legacy.export', {});
   recordChange('legacy', 'export', 'all');

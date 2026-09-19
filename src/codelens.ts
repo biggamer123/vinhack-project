@@ -10,6 +10,7 @@ import { CallGraph } from "./graph";
 import { RiskService, tierFor } from "./risk";
 
 const TIER_MARK: Record<string, string> = {
+  unused: "$(trash)",
   low: "$(shield)",
   medium: "$(warning)",
   high: "$(flame)",

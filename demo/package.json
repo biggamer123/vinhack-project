@@ -1,7 +1,20 @@
 {
-  "name": "blog-engine-demo",
-  "version": "1.0.0",
+  "name": "inkwell",
+  "version": "2.3.0",
   "private": true,
-  "scripts": { "test": "jest" },
-  "devDependencies": { "jest": "^29.7.0" }
+  "description": "Inkwell - a small blogging platform (Blast Radius demo repository)",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "test": "jest --coverage --coverageReporters=lcov",
+    "db:migrate": "psql \"$DATABASE_URL\" -f db/migrations/001_users_posts.sql -f db/migrations/002_comments.sql -f db/migrations/003_sessions_tags.sql",
+    "docker:up": "docker compose up --build",
+    "docker:down": "docker compose down"
+  },
+  "dependencies": {
+    "mongoose": "^8.5.1"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0"
+  }
 }

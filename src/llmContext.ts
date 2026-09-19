@@ -18,6 +18,7 @@
  * Dependency-free (no vscode import) so scripts/check-llm.js can verify it.
  */
 import type { Feature, FeaturesPayload } from "./features";
+import { formulaText, RiskBreakdown } from "./score";
 
 export interface FunctionInfo {
   id: string;
@@ -30,6 +31,7 @@ export interface FunctionInfo {
   endLine: number;
   score: number;
   tier: string;
+  breakdown?: RiskBreakdown;
   fanIn: number;
   fanOut: number;
   coverage: string;
@@ -160,7 +162,7 @@ export function functionMarkdown(id: string, ctx: LlmContext): string {
   const out = header(fn.name, ctx);
   out.push(
     `- File: ${loc(fn)}`,
-    `- Tier: ${fn.tier.toUpperCase()}`,
+    `- Tier: ${fn.tier.toUpperCase()}${fn.breakdown && fn.breakdown.usage !== "active" ? ` (${fn.breakdown.usage})` : ""}`,
     `- Risk score: ${fn.score}`,
     `- Coverage: ${fn.coverage}${fn.coverageIsProxy ? " (proxy)" : ""}`,
     `- Fan-in: ${fn.fanIn}`,
@@ -214,7 +216,7 @@ export function functionMarkdown(id: string, ctx: LlmContext): string {
   out.push(
     "",
     "## Score formula",
-    `score = fanIn*2 + (100 - coverage)/10 + churn90d - (busFactor > 1 ? 2 : 0) = ${fn.score}`,
+    fn.breakdown ? formulaText(fn.breakdown) : `risk ${fn.score}`,
     "",
   );
   return out.join("\n");

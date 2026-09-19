@@ -1,0 +1,21 @@
+CREATE TABLE IF NOT EXISTS users (
+  id UUID PRIMARY KEY,
+  email VARCHAR(255) NOT NULL,
+  display_name VARCHAR(80) NOT NULL,
+  password_hash TEXT NOT NULL,
+  role VARCHAR(16) NOT NULL,
+  bio TEXT,
+  created_at TIMESTAMPTZ NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS posts (
+  id BIGSERIAL PRIMARY KEY,
+  author_id UUID NOT NULL,
+  title VARCHAR(200) NOT NULL,
+  slug VARCHAR(220) NOT NULL,
+  body TEXT NOT NULL,
+  status VARCHAR(16) NOT NULL,
+  published_at TIMESTAMPTZ,
+  updated_at TIMESTAMPTZ,
+  FOREIGN KEY (author_id) REFERENCES users (id)
+);

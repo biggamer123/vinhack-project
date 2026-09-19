@@ -16,7 +16,7 @@ const { indexSource, initParser } = require("../out/indexer");
 const { CallGraph } = require("../out/graph");
 const { findRepoRoot, historyForRange } = require("../out/git");
 const { readCommits, buildFeatures } = require("../out/features");
-const { computeScore, tierFor } = require("../out/score");
+const { assessFunction } = require("../out/assess");
 const llm = require("../out/llmContext");
 
 let failures = 0;
@@ -49,8 +49,8 @@ async function contextFor(root) {
   const functions = new Map();
   for (const n of graph.allNodes()) {
     const h = await historyForRange(repo, n.file, n.startLine, n.endLine);
-    const risk = { fanIn: n.callers.size, coveragePct: null, churnCount: h.churnCount, busFactor: h.busFactor };
-    const score = computeScore(risk);
+    const breakdown = assessFunction(graph, n, { coveragePct: null, coverageIsProxy: false, churnCount: h.churnCount, busFactor: h.busFactor, gitResolved: true });
+    const score = breakdown.score;
     functions.set(n.id, {
       id: n.id,
       name: n.name,
@@ -59,7 +59,8 @@ async function contextFor(root) {
       startLine: n.startLine,
       endLine: n.endLine,
       score,
-      tier: tierFor(score),
+      tier: breakdown.tier,
+      breakdown,
       fanIn: n.callers.size,
       fanOut: n.callees.size,
       coverage: "no data",

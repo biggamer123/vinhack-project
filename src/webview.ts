@@ -11,8 +11,10 @@ import * as path from "path";
 import * as vscode from "vscode";
 import { CallGraph } from "./graph";
 import { RiskService, tierFor } from "./risk";
+import type { RiskBreakdown } from "./score";
 import { inferSchemaRelations, scanDatabaseSchemas } from "./schema";
 import { buildFeatures, FeaturesPayload, FunctionRef, RawCommit, readCommits } from "./features";
+import { readFeatureTags } from "./featureLog";
 import { findRepoRoot } from "./git";
 import {
   assignFeatureFileNames,
@@ -27,6 +29,7 @@ import type { BackupsController, BackupsPayload } from "./backupsController";
 import { PROTOCOL_VERSION } from "./protocol";
 import { analyzeProject, DevopsPayload } from "./devops";
 import { loadPageTemplate } from "./pageTemplate";
+import { functionSources } from "./sources";
 import { buildStandaloneHtml, servePage } from "./standalone";
 
 interface WireNode {
@@ -39,6 +42,7 @@ interface WireNode {
   fanOut: number;
   score: number;
   tier: string;
+  lines: number;
   risk: {
     fanIn: number;
     coveragePct: number | null;
@@ -52,6 +56,7 @@ interface WireNode {
     /** Recent commits touching this function, for the GIT tab's charts and history. */
     commits: { hash: string; email: string; name: string; t: number; subject: string }[];
     testRefs: { file: string; line: number; name: string }[];
+    breakdown: RiskBreakdown;
     gitResolved: boolean;
   };
 }
@@ -155,6 +160,7 @@ export class GraphPanel {
 
   private onMessage(msg: {
     type: string;
+    focus?: boolean;
     tab?: string;
     devopsMode?: string;
     stack?: unknown;
@@ -172,7 +178,7 @@ export class GraphPanel {
       return;
     }
     if (msg.type === "reveal" && msg.id) {
-      this.reveal(msg.id);
+      void this.reveal(msg.id, !!msg.focus);
       return;
     }
     if (msg.type === "revealTest" && msg.file) {
@@ -312,21 +318,41 @@ export class GraphPanel {
   }
 
   /** Jump the editor to a function the user clicked in the graph. */
-  private async reveal(id: string): Promise<void> {
+  /** Highlight for the function currently shown beside the graph. */
+  private static highlight = vscode.window.createTextEditorDecorationType({
+    backgroundColor: new vscode.ThemeColor("editor.rangeHighlightBackground"),
+    isWholeLine: true,
+    overviewRulerColor: new vscode.ThemeColor("editorOverviewRuler.rangeHighlightForeground"),
+    overviewRulerLane: vscode.OverviewRulerLane.Full,
+    borderWidth: "0 0 0 3px",
+    borderStyle: "solid",
+    borderColor: new vscode.ThemeColor("editorLink.activeForeground"),
+  });
+
+  /**
+   * Show a function's definition in the editor column beside the graph, with its
+   * lines highlighted. A click keeps focus on the graph and reuses a preview tab,
+   * so clicking through functions does not pile up tabs; OPEN IN EDITOR takes
+   * focus and keeps the tab.
+   */
+  private async reveal(id: string, focus = false): Promise<void> {
     const node = this.graph.getNode(id);
     if (!node) {
       return;
     }
-    const doc = await vscode.workspace.openTextDocument(
-      vscode.Uri.file(node.file),
-    );
+    const panelColumn = this.panel.viewColumn ?? vscode.ViewColumn.Two;
+    const column = panelColumn === vscode.ViewColumn.One ? vscode.ViewColumn.Two : vscode.ViewColumn.One;
+    const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(node.file));
     const editor = await vscode.window.showTextDocument(doc, {
-      viewColumn: vscode.ViewColumn.One,
-      preserveFocus: false,
+      viewColumn: column,
+      preserveFocus: !focus,
+      preview: !focus,
     });
-    const range = new vscode.Range(node.startLine, 0, node.endLine, 0);
+    const end = Math.min(node.endLine, doc.lineCount - 1);
+    const range = new vscode.Range(node.startLine, 0, end, doc.lineAt(end).text.length);
+    editor.setDecorations(GraphPanel.highlight, [range]);
     editor.selection = new vscode.Selection(range.start, range.start);
-    editor.revealRange(range, vscode.TextEditorRevealType.InCenter);
+    editor.revealRange(range, vscode.TextEditorRevealType.InCenterIfOutsideViewport);
   }
 
   /** Open a test case referenced by a function's coverage findings. */
@@ -487,7 +513,8 @@ export async function llmContextFor(graph: CallGraph, risk: RiskService): Promis
       startLine: node.startLine,
       endLine: node.endLine,
       score: info.score,
-      tier: tierFor(info.score),
+      tier: info.breakdown.tier,
+      breakdown: info.breakdown,
       fanIn: info.fanIn,
       fanOut: node.callees.size,
       coverage: risk.coverageLabel(info),
@@ -580,11 +607,12 @@ export function featuresFor(
       file: vscode.workspace.asRelativePath(node.file),
       startLine: node.startLine,
       score: info.score,
-      tier: tierFor(info.score),
+      tier: info.breakdown.tier,
       commitHashes: info.commits.map((c) => c.hash),
     };
   });
-  const payload = buildFeatures(commits, refs);
+  const root = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? "";
+  const payload = buildFeatures(commits, refs, root ? readFeatureTags(root) : undefined);
   if (error) {
     payload.error = error;
   }
@@ -646,7 +674,8 @@ export function serializeGraph(
       fanIn: node.callers.size,
       fanOut: node.callees.size,
       score: info.score,
-      tier: tierFor(info.score),
+      tier: info.breakdown.tier,
+      lines: node.endLine - node.startLine + 1,
       risk: {
         fanIn: info.fanIn,
         coveragePct: info.coveragePct,
@@ -657,6 +686,7 @@ export function serializeGraph(
         lastChange: info.lastChange,
         commits: info.commits,
         testRefs: info.testRefs,
+        breakdown: info.breakdown,
         gitResolved: info.gitResolved,
       },
     });
@@ -728,6 +758,7 @@ export async function openInBrowser(
           devops: devopsFor(),
           features: ctx.features,
           llm: { features: docs },
+          sources: functionSources(graph),
           protocol: PROTOCOL_VERSION,
           version: context.extension?.packageJSON?.version ?? "dev",
           focusTab: view.focusTab,
