@@ -1,4 +1,4 @@
-# Blast Radius - Stages 1–3
+# Blast Radius 
 
 A VS Code extension that shows, inline, how far a change to any function reaches -
 and how dangerous that reach is. Everything through Stage 3 is **deterministic**:
